@@ -1,116 +1,105 @@
 <template>
     <div class="bundle-generator">
+        <!-- 第一部分：搜索条件设置 -->
+        <el-card class="box-card mb-20">
+            <template #header>
+                <div class="card-header">
+                    <span>商品搜索</span>
+                </div>
+            </template>
+            <div class="search-area">
+                <el-checkbox-group v-model="searchTypes" class="search-type-group">
+                    <el-checkbox label="productName">品名</el-checkbox>
+                    <el-checkbox label="skuCode">SKU码</el-checkbox>
+                    <el-checkbox label="articleCode">A码</el-checkbox>
+                </el-checkbox-group>
+                <div class="search-input-row">
+                    <el-autocomplete v-model="searchQuery" :fetch-suggestions="querySearch"
+                        placeholder="输入搜索内容（支持组合搜索：* 表示AND，+ 表示OR，- 表示NOT）" class="search-input" clearable size="large"
+                        @keyup.enter="handleQuickSearch" @select="handleSelect">
+                        <template #append>
+                            <el-button :icon="Search" @click="handleQuickSearch" size="large" />
+                        </template>
+                    </el-autocomplete>
+                    <el-checkbox v-model="filterZeroStock" size="large">过滤库存为0</el-checkbox>
+                </div>
+            </div>
+        </el-card>
+
         <el-row :gutter="20">
-            <el-col :span="18">
-                <el-card class="box-card mb-20"
-                    style="height: calc(100vh - 100px); display: flex; flex-direction: column;"
-                    :body-style="{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }">
+            <!-- 第二部分：已选商品表格（左侧） -->
+            <el-col :span="16">
+                <el-card class="box-card" style="height: calc(100vh - 280px);"
+                    :body-style="{ height: 'calc(100% - 56px)', display: 'flex', flexDirection: 'column' }">
                     <template #header>
-                        <div class="card-header">
-                            <span>商品搜索</span>
+                        <div class="card-header"
+                            style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>生成货组</span>
+                            <div>
+                                <el-statistic title="SKU总数" :value="totalSkuCount"
+                                    style="margin-right: 20px; display: inline-block;" />
+                                <el-statistic title="A码库存总数" :value="totalArticleStock"
+                                    style="display: inline-block;" />
+                            </div>
                         </div>
                     </template>
-                    <div class="search-area">
-                        <el-input v-model="searchQuery" placeholder="输入商品名称、编码或TU" class="search-input" clearable
-                            size="large" @keyup.enter="handleSearch">
-                            <template #append>
-                                <el-button :icon="Search" @click="handleSearch" size="large" />
-                            </template>
-                        </el-input>
-                        <el-button @click="resetSearch" size="large">重置</el-button>
-                        <el-checkbox v-model="filterZeroStock" @change="handleSearch"
-                            size="large">过滤库存为0的商品</el-checkbox>
-                        <!-- <el-checkbox v-model="filterNoInfo" @change="handleSearch" size="large">过滤无产品信息的商品</el-checkbox> -->
-                    </div>
-
-                    <!-- <el-table :data="searchResults" style="width: 100%; margin-top: 20px; flex: 1" border
-                        @selection-change="handleSelectionChange" height="100%"> -->
-                    <div class="table-wrapper"
-                        :class="{ 'show-left-fade': showLeftFade, 'show-right-fade': showRightFade, 'show-top-fade': showTopFade, 'show-bottom-fade': showBottomFade }">
-                        <el-table ref="tableRef" :data="searchResults" style="width: 100%;" border
-                            @selection-change="handleSelectionChange" @sort-change="handleSortChange"
-                            :default-sort="{ prop: sortProp, order: sortOrder }" max-height="calc(100vh - 360px)"
-                            row-key="id">
-                            <el-table-column type="selection" width="55" :reserve-selection="true" />
-                            <el-table-column label="主品/赠品" width="100" align="center">
+                    <div style="flex: 1; overflow: auto;">
+                        <el-table :data="bundleItems" border style="width: 100%;" max-height="calc(100vh - 420px)">
+                            <el-table-column label="主品/赠品" width="120" align="center">
                                 <template #default="scope">
-                                    <el-select v-model="scope.row.type" placeholder="选择类型" size="small"
-                                        @change="updateSelectedType(scope.row)">
+                                    <el-select v-model="scope.row.type" size="small">
                                         <el-option label="主品" value="main" />
                                         <el-option label="赠品" value="gift" />
                                     </el-select>
                                 </template>
                             </el-table-column>
-                            <el-table-column prop="article_code" label="A码" width="110" align="center"
-                                sortable="custom" />
-                            <el-table-column prop="tu" label="TU" width="90" align="center" sortable="custom" />
-                            <el-table-column prop="product_name_cn" label="品名" min-width="250" show-overflow-tooltip
-                                align="center" sortable="custom" />
-                            <el-table-column prop="declared_content" label="规格" width="100" align="center"
-                                sortable="custom" />
-                            <el-table-column prop="cn_current_price" label="货值" width="90" align="right"
-                                sortable="custom">
+                            <el-table-column prop="article_code" label="A码" width="120" align="center" />
+                            <el-table-column prop="tu" label="SKU码" width="100" align="center" />
+                            <el-table-column prop="product_name_cn" label="品名" min-width="200" show-overflow-tooltip />
+                            <el-table-column prop="declared_content" label="规格" width="100" align="center" />
+                            <el-table-column prop="cn_current_price" label="货值" width="100" align="right">
                                 <template #default="scope">
                                     ¥{{ scope.row.cn_current_price || 0 }}
                                 </template>
                             </el-table-column>
-                            <el-table-column prop="qty_available" label="库存" width="90" align="right" sortable>
+                            <el-table-column prop="qty_available" label="库存" width="90" align="right">
                                 <template #default="scope">
-                                    <span style="font-weight: bold;">
-                                        {{ scope.row.qty_available || 0 }}
-                                    </span>
+                                    <span style="font-weight: bold;">{{ scope.row.qty_available || 0 }}</span>
                                 </template>
                             </el-table-column>
-                            <el-table-column prop="category" label="类别" min-width="120" show-overflow-tooltip
-                                align="center" sortable />
-                            <el-table-column prop="product_name_en" label="商品英文名称" min-width="180" show-overflow-tooltip
-                                sortable />
-                            <el-table-column prop="shelf_life" label="保质期" width="95" sortable />
-                            <el-table-column prop="net_weight" label="净重" width="90" sortable />
-                            <el-table-column prop="item_size" label="尺寸" width="130" show-overflow-tooltip sortable />
-                            <el-table-column prop="country_of_origin" label="原产国" width="95" sortable />
+                            <el-table-column label="操作" width="100" align="center" fixed="right">
+                                <template #default="scope">
+                                    <el-button type="danger" link size="small"
+                                        @click="removeFromBundle(scope.$index)">移除</el-button>
+                                </template>
+                            </el-table-column>
                         </el-table>
                     </div>
-                    <div class="pagination-container">
-                        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize"
-                            :page-sizes="[10, 15, 20, 50, 100]" :total="total" background
-                            layout="total, sizes, prev, pager, next, jumper" @size-change="handleSizeChange"
-                            @current-change="handleCurrentChange" />
+                    <div class="bundle-actions">
+                        <el-input-number v-model="newRowCount" :min="1" :max="50" size="large"
+                            style="margin-right: 10px;" />
+                        <el-button type="primary" @click="addEmptyRows" size="large">确定新增</el-button>
+                        <el-button type="success" @click="showPreviewAndSave" size="large"
+                            style="margin-left: 10px;">生成货组</el-button>
                     </div>
                 </el-card>
             </el-col>
-            <el-col :span="6">
-                <el-card class="box-card mb-20">
-                    <template #header>
-                        <div class="card-header"
-                            style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>已选商品</span>
-                            <el-button type="primary" link @click="showSelectedDialog = true">查看已选</el-button>
-                        </div>
-                    </template>
-                    <div class="selected-summary">
-                        <div class="summary-item">
-                            <span>主品：</span>
-                            <span class="value">{{ mainCount }}个</span>
-                        </div>
-                        <div class="summary-item">
-                            <span>赠品：</span>
-                            <span class="value">{{ giftCount }}个</span>
-                        </div>
-                        <div class="summary-item total">
-                            <span>总货值：</span>
-                            <span class="value price">¥{{ totalValue }}</span>
-                        </div>
-                    </div>
-                </el-card>
 
-                <el-card class="box-card">
+            <!-- 第三部分：信息预览（右侧） -->
+            <el-col :span="8">
+                <el-card class="box-card" style="height: calc(100vh - 280px); overflow: auto;">
                     <template #header>
                         <div class="card-header">
-                            <span>生成设置</span>
+                            <span>信息预览</span>
                         </div>
                     </template>
                     <el-form label-position="top">
+                        <el-form-item label="创建时间">
+                            <el-input v-model="createTime" disabled size="large" />
+                        </el-form-item>
+                        <el-form-item label="虚拟编码">
+                            <el-input v-model="virtualCode" disabled size="large" />
+                        </el-form-item>
                         <el-form-item label="货组名称">
                             <el-input v-model="bundleName" placeholder="请输入货组名称" size="large" />
                         </el-form-item>
@@ -119,483 +108,422 @@
                                 start-placeholder="开始日期" end-placeholder="结束日期" style="width: 100%"
                                 value-format="YYYY-MM-DD" size="large" />
                         </el-form-item>
+
+                        <el-divider />
+
+                        <el-form-item label="主品货值">
+                            <el-input v-model="mainValue" disabled size="large">
+                                <template #prepend>¥</template>
+                            </el-input>
+                        </el-form-item>
+                        <el-form-item label="赠品货值">
+                            <el-input v-model="giftValue" disabled size="large">
+                                <template #prepend>¥</template>
+                            </el-input>
+                        </el-form-item>
+                        <el-form-item label="总价值">
+                            <el-input v-model="totalValue" disabled size="large" class="total-value-input">
+                                <template #prepend>¥</template>
+                            </el-input>
+                        </el-form-item>
+
+                        <el-divider />
+
+                        <el-form-item label="标签分类">
+                            <el-select v-model="selectedCategory" placeholder="请选择分类" size="large" style="width: 100%;">
+                                <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item label="香型">
+                            <el-select v-model="selectedFragrance" placeholder="请选择香型" size="large"
+                                style="width: 100%;">
+                                <el-option v-for="frag in fragrances" :key="frag" :label="frag" :value="frag" />
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item label="用途性质">
+                            <el-radio-group v-model="usageType" size="large">
+                                <el-radio label="cooperation">合作</el-radio>
+                                <el-radio label="self">自营</el-radio>
+                            </el-radio-group>
+                        </el-form-item>
+                        <el-form-item label="礼盒">
+                            <el-radio-group v-model="hasGiftBox" size="large">
+                                <el-radio :label="true">有</el-radio>
+                                <el-radio :label="false">无</el-radio>
+                            </el-radio-group>
+                        </el-form-item>
+
                         <el-form-item>
-                            <el-button type="primary" class="w-100" @click="generateBundle"
-                                size="large">生成货组</el-button>
+                            <el-button type="primary" class="w-100" @click="saveBundle" size="large">保存货组</el-button>
                         </el-form-item>
                     </el-form>
                 </el-card>
             </el-col>
         </el-row>
 
-        <el-dialog v-model="showSelectedDialog" title="已选商品明细" width="50%" append-to-body>
-            <h3>主品 ({{ mainCount }})</h3>
-            <div class="table-wrapper"
-                :class="{ 'show-left-fade': showMainLeftFade, 'show-right-fade': showMainRightFade, 'show-top-fade': showMainTopFade, 'show-bottom-fade': showMainBottomFade }">
-                <el-table ref="mainTableRef" :data="selectedMainList" border style="width: 100%; margin-bottom: 20px"
-                    max-height="300">
-                    <el-table-column prop="article_code" label="A码" min-width="120" align="center" />
-                    <el-table-column prop="tu" label="TU" min-width="80" align="center" />
-                    <el-table-column prop="product_name_cn" label="品名" min-width="200" align="center"
-                        show-overflow-tooltip />
-                    <el-table-column prop="qty_available" label="库存" min-width="80" align="center" />
-                    <el-table-column label="类型" min-width="100" align="center">
-                        <template #default="scope">
-                            <el-button type="primary" link size="small" @click="toggleType(scope.row)">
-                                转为赠品
-                            </el-button>
-                        </template>
-                    </el-table-column>
-                    <el-table-column label="操作" min-width="80" align="center">
-                        <template #default="scope">
-                            <el-button type="danger" link @click="removeSelectedItem(scope.row)">移除</el-button>
-                        </template>
-                    </el-table-column>
-                </el-table>
-            </div>
-
-            <h3>赠品 ({{ giftCount }})</h3>
-            <div class="table-wrapper"
-                :class="{ 'show-left-fade': showGiftLeftFade, 'show-right-fade': showGiftRightFade, 'show-top-fade': showGiftTopFade, 'show-bottom-fade': showGiftBottomFade }">
-                <el-table ref="giftTableRef" :data="selectedGiftList" border style="width: 100%" max-height="300">
-                    <el-table-column prop="article_code" label="A码" min-width="120" align="center" />
-                    <el-table-column prop="tu" label="TU" min-width="80" align="center" />
-                    <el-table-column prop="product_name_cn" label="品名" min-width="200" align="center"
-                        show-overflow-tooltip />
-                    <el-table-column prop="qty_available" label="库存" min-width="80" align="center" />
-                    <el-table-column label="类型" min-width="100" align="center">
-                        <template #default="scope">
-                            <el-button type="primary" link size="small" @click="toggleType(scope.row)">
-                                转为主品
-                            </el-button>
-                        </template>
-                    </el-table-column>
-                    <el-table-column label="操作" min-width="80" align="center">
-                        <template #default="scope">
-                            <el-button type="danger" link @click="removeSelectedItem(scope.row)">移除</el-button>
-                        </template>
-                    </el-table-column>
-                </el-table>
-            </div>
+        <!-- 关键信息列表弹窗 -->
+        <el-dialog v-model="showSearchResultDialog" title="关键信息列表" width="70%" append-to-body>
+            <el-table :data="searchDialogResults" border style="width: 100%;" max-height="500"
+                @selection-change="handleDialogSelectionChange">
+                <el-table-column type="selection" width="55" />
+                <el-table-column prop="product_name_cn" label="产品名称" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="article_code" label="A码" width="120" align="center" />
+                <el-table-column prop="tu" label="SKU码" width="100" align="center" />
+                <el-table-column prop="qty_available" label="库存数量" width="120" align="center">
+                    <template #default="scope">
+                        <span style="font-weight: bold;">{{ scope.row.qty_available || 0 }}</span>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <template #footer>
+                <el-button @click="showSearchResultDialog = false">取消</el-button>
+                <el-button type="primary" @click="addSelectedToBundl">结果中搜索</el-button>
+            </template>
         </el-dialog>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
+// 搜索相关
 const searchQuery = ref('')
-const bundleName = ref('')
-const dateRange = ref('')
-const searchResults = ref<any[]>([])
-const selectedItems = ref<any[]>([])
-const tableRef = ref()
-const mainTableRef = ref()
-const giftTableRef = ref()
-const showSelectedDialog = ref(false)
-
+const searchTypes = ref(['productName']) // 默认选中品名
 const filterZeroStock = ref(false)
-// const filterNoInfo = ref(false)
+const showSearchResultDialog = ref(false)
+const searchDialogResults = ref<any[]>([])
+const dialogSelectedItems = ref<any[]>([])
 
-// 主表格渐隐状态
-const showLeftFade = ref(false)
-const showRightFade = ref(true)
-const showTopFade = ref(false)
-const showBottomFade = ref(true)
+// 货组商品列表
+const bundleItems = ref<any[]>([])
+const newRowCount = ref(1)
 
-// 弹窗主品表格渐隐状态
-const showMainLeftFade = ref(false)
-const showMainRightFade = ref(false)
-const showMainTopFade = ref(false)
-const showMainBottomFade = ref(false)
+// 信息预览相关
+const bundleName = ref('')
+const dateRange = ref<[string, string] | ''>('')
+const createTime = ref('')
+const virtualCode = ref('')
+const selectedCategory = ref('')
+const selectedFragrance = ref('')
+const usageType = ref('cooperation')
+const hasGiftBox = ref(false)
 
-// 弹窗赠品表格渐隐状态
-const showGiftLeftFade = ref(false)
-const showGiftRightFade = ref(false)
-const showGiftTopFade = ref(false)
-const showGiftBottomFade = ref(false)
+// 标签数据（后续可从后端获取）
+const categories = ref(['护肤', '彩妆', '香水', '个护', '其他'])
+const fragrances = ref(['花香', '果香', '木质', '清新', '无香'])
 
-const currentPage = ref(1)
-const pageSize = ref(20)
-const total = ref(0)
+// 自动完成搜索建议
+const querySearch = async (queryString: string, cb: any) => {
+    if (!queryString || !searchTypes.value.includes('productName')) {
+        cb([])
+        return
+    }
 
-const sortProp = ref('')
-const sortOrder = ref('')
-
-const handleSearch = async () => {
     try {
-        const res = await (window as any).electronAPI.searchProducts(
-            searchQuery.value,
-            currentPage.value,
-            pageSize.value,
-            sortProp.value,
-            sortOrder.value,
-            filterZeroStock.value,
-            // filterNoInfo.value
-        )
-
-        const processList = (list: any[]) => {
-            return list.map((item: any) => {
-                const selected = selectedItems.value.find(s => s.id === item.id)
-                return {
-                    ...item,
-                    type: selected ? selected.type : 'main'
-                }
-            })
-        }
-
-        if (res && res.list) {
-            searchResults.value = processList(res.list)
-            total.value = res.total
-        } else if (Array.isArray(res)) {
-            // Fallback just in case
-            searchResults.value = processList(res)
-            total.value = res.length
-        }
+        const res = await (window as any).electronAPI.searchProductSuggestions(String(queryString))
+        const suggestions = res.map((item: any) => ({
+            value: item.product_name_cn,
+            ...item
+        }))
+        cb(suggestions)
     } catch (e) {
         console.error(e)
+        cb([])
     }
 }
 
-const updateSelectedType = (row: any) => {
-    const item = selectedItems.value.find(i => i.id === row.id)
-    if (item) {
-        item.type = row.type
+// 选中搜索建议
+const handleSelect = (item: any) => {
+    searchQuery.value = item.value
+    handleQuickSearch()
+}
+
+// 快速搜索（打开关键信息列表弹窗）
+const handleQuickSearch = async () => {
+    if (!searchQuery.value.trim()) {
+        ElMessage.warning('请输入搜索内容')
+        return
     }
-}
 
-const handleSizeChange = (val: number) => {
-    pageSize.value = val
-    handleSearch()
-}
-
-const handleCurrentChange = (val: number) => {
-    currentPage.value = val
-    handleSearch()
-}
-
-const resetSearch = () => {
-    searchQuery.value = ''
-    currentPage.value = 1
-    handleSearch()
-}
-
-const handleSortChange = ({ prop, order }: { prop: string, order: string | null }) => {
-    sortProp.value = prop || ''
-    sortOrder.value = order || ''
-    currentPage.value = 1  // 排序时重置到第一页
-    handleSearch()
-}
-
-const checkTableScroll = () => {
-    nextTick(() => {
-        const tableEl = tableRef.value?.$el
-        if (!tableEl) return
-        const scrollWrapper = tableEl.querySelector('.el-scrollbar__wrap')
-        if (!scrollWrapper) return
-
-        const { scrollLeft, scrollWidth, clientWidth, scrollTop, scrollHeight, clientHeight } = scrollWrapper
-        showLeftFade.value = scrollLeft > 0
-        showRightFade.value = scrollLeft + clientWidth < scrollWidth - 1
-        showTopFade.value = scrollTop > 0
-        showBottomFade.value = scrollTop + clientHeight < scrollHeight - 1
-    })
-}
-
-const checkMainTableScroll = () => {
-    nextTick(() => {
-        const tableEl = mainTableRef.value?.$el
-        if (!tableEl) return
-        const scrollWrapper = tableEl.querySelector('.el-scrollbar__wrap')
-        if (!scrollWrapper) return
-
-        const { scrollLeft, scrollWidth, clientWidth, scrollTop, scrollHeight, clientHeight } = scrollWrapper
-        showMainLeftFade.value = scrollLeft > 0
-        showMainRightFade.value = scrollLeft + clientWidth < scrollWidth - 1
-        showMainTopFade.value = scrollTop > 0
-        showMainBottomFade.value = scrollTop + clientHeight < scrollHeight - 1
-    })
-}
-
-const checkGiftTableScroll = () => {
-    nextTick(() => {
-        const tableEl = giftTableRef.value?.$el
-        if (!tableEl) return
-        const scrollWrapper = tableEl.querySelector('.el-scrollbar__wrap')
-        if (!scrollWrapper) return
-
-        const { scrollLeft, scrollWidth, clientWidth, scrollTop, scrollHeight, clientHeight } = scrollWrapper
-        showGiftLeftFade.value = scrollLeft > 0
-        showGiftRightFade.value = scrollLeft + clientWidth < scrollWidth - 1
-        showGiftTopFade.value = scrollTop > 0
-        showGiftBottomFade.value = scrollTop + clientHeight < scrollHeight - 1
-    })
-}
-
-const setupTableScrollListener = () => {
-    nextTick(() => {
-        const tableEl = tableRef.value?.$el
-        if (!tableEl) return
-        const scrollWrapper = tableEl.querySelector('.el-scrollbar__wrap')
-        if (!scrollWrapper) return
-
-        scrollWrapper.addEventListener('scroll', checkTableScroll)
-        checkTableScroll()
-    })
-}
-
-const setupDialogTableScrollListeners = () => {
-    nextTick(() => {
-        // 设置主品表格监听
-        const mainTableEl = mainTableRef.value?.$el
-        if (mainTableEl) {
-            const mainScrollWrapper = mainTableEl.querySelector('.el-scrollbar__wrap')
-            if (mainScrollWrapper) {
-                mainScrollWrapper.addEventListener('scroll', checkMainTableScroll)
-                checkMainTableScroll()
-            }
-        }
-
-        // 设置赠品表格监听
-        const giftTableEl = giftTableRef.value?.$el
-        if (giftTableEl) {
-            const giftScrollWrapper = giftTableEl.querySelector('.el-scrollbar__wrap')
-            if (giftScrollWrapper) {
-                giftScrollWrapper.addEventListener('scroll', checkGiftTableScroll)
-                checkGiftTableScroll()
-            }
-        }
-    })
-}
-
-onMounted(() => {
-    handleSearch()
-    setupTableScrollListener()
-})
-
-watch(searchResults, () => {
-    checkTableScroll()
-})
-
-watch(showSelectedDialog, (val) => {
-    if (val) {
-        setupDialogTableScrollListeners()
+    if (searchTypes.value.length === 0) {
+        ElMessage.warning('请至少选择一种搜索类型')
+        return
     }
-})
 
-const handleSelectionChange = (val: any[]) => {
-    selectedItems.value = val
-}
+    try {
+        console.log('搜索参数:', {
+            query: searchQuery.value,
+            types: searchTypes.value,
+            filterZeroStock: filterZeroStock.value
+        })
 
+        // 将响应式对象转换为普通对象，避免 IPC 克隆错误
+        const res = await (window as any).electronAPI.searchProductsByTypes(
+            String(searchQuery.value),
+            JSON.parse(JSON.stringify(searchTypes.value)),
+            Boolean(filterZeroStock.value)
+        )
 
-const mainCount = computed(() => selectedItems.value.filter((i: any) => i.type === 'main').length)
-const giftCount = computed(() => selectedItems.value.filter((i: any) => i.type === 'gift').length)
-const totalValue = computed(() => selectedItems.value.reduce((sum: number, i: any) => sum + (i.cn_current_price || 0), 0))
+        console.log('搜索结果:', res)
 
-const selectedMainList = computed(() => selectedItems.value.filter(i => i.type === 'main'))
-const selectedGiftList = computed(() => selectedItems.value.filter(i => i.type === 'gift'))
-
-watch([selectedMainList, selectedGiftList], () => {
-    if (showSelectedDialog.value) {
-        checkMainTableScroll()
-        checkGiftTableScroll()
-    }
-})
-
-const toggleType = (row: any) => {
-    row.type = row.type === 'main' ? 'gift' : 'main'
-    handleDialogTypeChange(row)
-}
-
-const handleDialogTypeChange = (row: any) => {
-    const inSearch = searchResults.value.find(r => r.id === row.id)
-    if (inSearch) {
-        inSearch.type = row.type
-    }
-}
-
-const removeSelectedItem = (row: any) => {
-    if (tableRef.value) {
-        const inSearch = searchResults.value.find(r => r.id === row.id)
-        if (inSearch) {
-            tableRef.value.toggleRowSelection(inSearch, false)
+        if (res && res.length > 0) {
+            searchDialogResults.value = res
+            showSearchResultDialog.value = true
         } else {
-            tableRef.value.toggleRowSelection(row, false)
+            ElMessage.info('未找到匹配的商品')
         }
+    } catch (e: any) {
+        console.error('搜索错误详情:', e)
+        ElMessage.error(`搜索出错: ${e.message || '未知错误'}`)
     }
 }
 
-const generateBundle = async () => {
+// 关键信息列表选择
+const handleDialogSelectionChange = (val: any[]) => {
+    dialogSelectedItems.value = val
+}
+
+// 将选中的商品添加到货组
+const addSelectedToBundl = () => {
+    if (dialogSelectedItems.value.length === 0) {
+        ElMessage.warning('请至少选择一个商品')
+        return
+    }
+
+    dialogSelectedItems.value.forEach(item => {
+        // 检查是否已存在
+        const exists = bundleItems.value.find(b => b.id === item.id)
+        if (!exists) {
+            bundleItems.value.push({
+                ...item,
+                type: 'main' // 默认为主品
+            })
+        }
+    })
+
+    ElMessage.success(`已添加 ${dialogSelectedItems.value.length} 个商品`)
+    showSearchResultDialog.value = false
+    dialogSelectedItems.value = []
+}
+
+// 从货组中移除商品
+const removeFromBundle = (index: number) => {
+    bundleItems.value.splice(index, 1)
+}
+
+// 添加空行
+const addEmptyRows = () => {
+    for (let i = 0; i < newRowCount.value; i++) {
+        bundleItems.value.push({
+            id: `temp_${Date.now()}_${i}`,
+            type: 'main',
+            article_code: '',
+            tu: '',
+            product_name_cn: '',
+            declared_content: '',
+            cn_current_price: 0,
+            qty_available: 0
+        })
+    }
+    ElMessage.success(`已添加 ${newRowCount.value} 行`)
+}
+
+// 计算统计数据
+const totalSkuCount = computed(() => bundleItems.value.length)
+const totalArticleStock = computed(() => {
+    const articleMap = new Map()
+    bundleItems.value.forEach(item => {
+        if (item.article_code) {
+            const current = articleMap.get(item.article_code) || 0
+            articleMap.set(item.article_code, current + (item.qty_available || 0))
+        }
+    })
+    return Array.from(articleMap.values()).reduce((sum, val) => sum + val, 0)
+})
+
+const mainValue = computed(() => {
+    return bundleItems.value
+        .filter(item => item.type === 'main')
+        .reduce((sum, item) => sum + (item.cn_current_price || 0), 0)
+        .toFixed(2)
+})
+
+const giftValue = computed(() => {
+    return bundleItems.value
+        .filter(item => item.type === 'gift')
+        .reduce((sum, item) => sum + (item.cn_current_price || 0), 0)
+        .toFixed(2)
+})
+
+const totalValue = computed(() => {
+    return (parseFloat(mainValue.value) + parseFloat(giftValue.value)).toFixed(2)
+})
+
+// 生成虚拟编码
+const generateVirtualCode = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+    return `BDL${year}${month}${day}${random}`
+}
+
+// 显示预览并准备保存
+const showPreviewAndSave = () => {
+    if (bundleItems.value.length === 0) {
+        ElMessage.warning('请添加商品到货组')
+        return
+    }
+
+    // 生成创建时间和虚拟编码
+    const now = new Date()
+    createTime.value = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`
+    virtualCode.value = generateVirtualCode()
+
+    ElMessage.success('货组信息已更新，请在右侧预览并保存')
+}
+
+// 保存货组
+const saveBundle = async () => {
     if (!bundleName.value) {
         ElMessage.warning('请输入货组名称')
         return
     }
-    if (selectedItems.value.length === 0) {
-        ElMessage.warning('请选择商品')
+
+    if (bundleItems.value.length === 0) {
+        ElMessage.warning('货组中没有商品')
         return
     }
 
     const bundleData = {
         name: bundleName.value,
+        virtualCode: virtualCode.value,
+        createTime: createTime.value,
         startDate: dateRange.value ? dateRange.value[0] : '',
         endDate: dateRange.value ? dateRange.value[1] : '',
-        items: JSON.parse(JSON.stringify(selectedItems.value)), // Deep copy to avoid proxy issues
-        totalValue: totalValue.value
+        items: JSON.parse(JSON.stringify(bundleItems.value)),
+        mainValue: parseFloat(mainValue.value),
+        giftValue: parseFloat(giftValue.value),
+        totalValue: parseFloat(totalValue.value),
+        category: selectedCategory.value,
+        fragrance: selectedFragrance.value,
+        usageType: usageType.value,
+        hasGiftBox: hasGiftBox.value
     }
 
     try {
         const res = await (window as any).electronAPI.createBundle(bundleData)
         if (res.success) {
-            ElMessage.success(`货组生成成功，虚拟编码：${res.virtualCode}`)
+            ElMessage.success(`货组保存成功！虚拟编码：${virtualCode.value}`)
+            // 重置表单
             bundleName.value = ''
             dateRange.value = ''
-            selectedItems.value = []
-            // searchResults.value = [] // Keep search results
+            bundleItems.value = []
+            createTime.value = ''
+            virtualCode.value = ''
+            selectedCategory.value = ''
+            selectedFragrance.value = ''
+            usageType.value = 'cooperation'
+            hasGiftBox.value = false
         } else {
-            ElMessage.error('生成失败: ' + res.error)
+            ElMessage.error('保存失败: ' + res.error)
         }
     } catch (e) {
-        ElMessage.error('生成出错')
+        console.error(e)
+        ElMessage.error('保存出错')
     }
 }
+
+onMounted(() => {
+    // 初始化
+})
 </script>
 
 <style scoped>
+.bundle-generator {
+    padding: 20px;
+}
+
 .mb-20 {
     margin-bottom: 20px;
 }
 
+/* 搜索区域 */
 .search-area {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.search-type-group {
+    display: flex;
+    gap: 20px;
+}
+
+.search-input-row {
     display: flex;
     gap: 10px;
     align-items: center;
 }
 
 .search-input {
-    width: 300px;
+    flex: 1;
 }
 
-.selected-summary {
-    padding: 10px 0;
-}
-
-.summary-item {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 10px;
-    font-size: 14px;
-}
-
-.summary-item.total {
-    margin-top: 20px;
-    font-weight: bold;
-    font-size: 16px;
+/* 货组操作区域 */
+.bundle-actions {
+    margin-top: 15px;
+    padding-top: 15px;
     border-top: 1px solid #eee;
-    padding-top: 10px;
-}
-
-.price {
-    color: #f56c6c;
-}
-
-.w-100 {
-    width: 100%;
-}
-
-.pagination-container {
-    margin-top: 20px;
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
 }
 
-/* 模块标题 */
+/* 卡片标题 */
 .card-header span {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: bold;
 }
 
-/* 表格内容字号 */
+/* 表格字号 */
 :deep(.el-table) {
     font-size: 14px;
 }
 
-/* 辅助说明字号 */
-:deep(.el-upload__tip) {
-    font-size: 12px;
+/* 总价值输入框样式 */
+.total-value-input :deep(.el-input__inner) {
+    font-weight: bold;
+    font-size: 16px;
+    color: #f56c6c;
 }
 
-.col-bold {
+/* 通用样式 */
+.w-100 {
+    width: 100%;
+}
+
+/* 统计数据样式 */
+:deep(.el-statistic__content) {
+    font-size: 18px;
     font-weight: bold;
 }
 
-/* 表格渐隐效果 */
-.table-wrapper {
-    position: relative;
-    margin-top: 20px;
+:deep(.el-statistic__head) {
+    font-size: 12px;
+    color: #909399;
+    margin-bottom: 5px;
 }
 
-/* 左右渐隐 */
-.table-wrapper::before,
-.table-wrapper::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 12px;
-    width: 40px;
-    pointer-events: none;
-    z-index: 10;
-    opacity: 0;
-    transition: opacity 0.3s ease;
+/* 表单项间距 */
+:deep(.el-form-item) {
+    margin-bottom: 18px;
 }
 
-.table-wrapper::before {
-    left: 0;
-    background: linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
-}
-
-.table-wrapper::after {
-    right: 0;
-    background: linear-gradient(to left, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
-}
-
-.table-wrapper.show-left-fade::before {
-    opacity: 1;
-}
-
-.table-wrapper.show-right-fade::after {
-    opacity: 1;
-}
-
-.table-wrapper :deep(.el-table__body-wrapper)::before,
-.table-wrapper :deep(.el-table__body-wrapper)::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 12px;
-    height: 30px;
-    pointer-events: none;
-    z-index: 10;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.table-wrapper :deep(.el-table__body-wrapper)::before {
-    top: 0;
-    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
-}
-
-.table-wrapper :deep(.el-table__body-wrapper)::after {
-    bottom: 0;
-    background: linear-gradient(to top, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
-}
-
-.table-wrapper.show-top-fade :deep(.el-table__body-wrapper)::before {
-    opacity: 1;
-}
-
-.table-wrapper.show-bottom-fade :deep(.el-table__body-wrapper)::after {
-    opacity: 1;
+/* 分割线 */
+:deep(.el-divider) {
+    margin: 20px 0;
 }
 </style>
