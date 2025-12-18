@@ -34,7 +34,7 @@
 - 前端框架：Vue 3 + TypeScript + Vite
 - UI 组件库：Element Plus + @element-plus/icons-vue
 - 路由：Vue Router
-- 数据持久化：sql.js（SQLite in-memory + 文件持久化），数据库文件保存在 `app.getPath("userData")/bundle.db`
+- 数据持久化：better-sqlite3（原生 SQLite），数据库文件保存在 `app.getPath("userData")/bundle.db`
 - 表格/文件处理：xlsx
 
 ## 主要目录结构
@@ -103,7 +103,7 @@ npm run electron:build
 
 ## 数据存储
 
-- 应用使用 `sql.js` 在内存中运行 SQLite 数据库，并通过 `bundle.db` 文件持久化到本地：
+- 应用使用 `better-sqlite3` 原生 SQLite 数据库，数据自动持久化到 `bundle.db` 文件：
   - 表 `goods`：存储货品信息（A 码、TU、品名、规格、价格、原产国等）。
   - 表 `inventory`：存储库存信息（SKU、批次、到期日、可用库存等）。
   - 视图 `products_view`：将 `goods` 与 `inventory` 按 TU/SKU 聚合，供前端商品搜索使用。

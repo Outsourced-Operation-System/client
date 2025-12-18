@@ -23,6 +23,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
       filterZeroStock
       // filterNoInfo
     ),
+  searchProductSuggestions: (query) =>
+    ipcRenderer.invoke("db:search-product-suggestions", query),
+  searchProductsByTypes: (query, searchTypes, filterZeroStock) =>
+    ipcRenderer.invoke(
+      "db:search-products-by-types",
+      query,
+      searchTypes,
+      filterZeroStock
+    ),
   createBundle: (bundleData) =>
     ipcRenderer.invoke("db:create-bundle", bundleData),
   getBundles: (filters) => ipcRenderer.invoke("db:get-bundles", filters),
