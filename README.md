@@ -41,9 +41,17 @@
 
 ```bash
 .
-├─ electron/            # Electron 主进程 & preload 脚本
-│  ├─ main.cjs          # Electron 入口、SQLite 初始化及业务 IPC 处理
-│  └─ preload.js        # 向渲染进程暴露 electronAPI
+├─ electron/
+│  ├── main.cjs                  # 应用主入口（简化后）
+│  ├── preload.js               # 预加载脚本
+│  ├── database/                # 数据库模块
+│  │   └── index.js            # 数据库初始化和表结构管理
+│  └── handlers/                # IPC 处理器模块
+│      ├── index.js            # 统一注册所有 handlers
+│      ├── productHandlers.js  # 产品相关操作
+│      ├── bundleHandlers.js   # 货组相关操作
+│      ├── dataHandlers.js     # 数据导入导出操作
+│      └── statsHandlers.js    # 统计信息操作
 ├─ src/
 │  ├─ main.ts           # Vue 应用入口，挂载 Element Plus & 路由
 │  ├─ App.vue           # 根组件，承载 <router-view />
