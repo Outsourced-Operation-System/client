@@ -92,6 +92,23 @@ function registerBundleHandlers() {
       return { success: false, error: error.message };
     }
   });
+
+  // 获取今天的货组数量
+  ipcMain.handle("db:get-today-bundle-count", async () => {
+    try {
+      const db = getDatabase();
+      const dateStr = dayjs().format("YYYYMMDD");
+      const countResult = db
+        .prepare(
+          `SELECT COUNT(*) as count FROM bundles WHERE virtual_code LIKE ?`
+        )
+        .get(`BD${dateStr}%`);
+      return { count: countResult ? countResult.count : 0 };
+    } catch (error) {
+      console.error("Get today bundle count error:", error);
+      return { count: 0 };
+    }
+  });
 }
 
 module.exports = {

@@ -128,7 +128,7 @@ function createTables() {
   // 先删除旧视图再创建新视图（如果存在）
   db.exec("DROP VIEW IF EXISTS products_view");
 
-  // 产品视图 - 从货品表和库存表中提取数据，使用 TU 和 SKU 关联
+  // 产品视图 - 从货品表和库存表中提取数据，优先使用 TU 和 SKU 关联，其次使用 A 码关联
   db.exec(`
     CREATE VIEW IF NOT EXISTS products_view AS
     SELECT 
@@ -145,9 +145,10 @@ function createTables() {
       g.item_size,
       g.country_of_origin,
       COALESCE(SUM(i.qty_available), 0) AS qty_available,
+      MAX(i.tu_shelf_life) AS tu_shelf_life,
       g.updated_at
     FROM goods g
-    LEFT JOIN inventory i ON g.tu = i.sku
+    LEFT JOIN inventory i ON (g.tu = i.sku OR g.article_code = i.itm_articleid)
     GROUP BY g.id, g.category, g.article_code, g.tu, g.product_name_en, 
              g.product_name_cn, g.declared_content, g.cn_current_price, 
              g.shelf_life, g.net_weight, g.item_size, g.country_of_origin, g.updated_at;

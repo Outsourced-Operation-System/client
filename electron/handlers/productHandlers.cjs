@@ -157,6 +157,7 @@ function registerProductHandlers() {
           qty_available,
           category,
           shelf_life,
+          tu_shelf_life,
           net_weight,
           item_size,
           country_of_origin
@@ -186,6 +187,7 @@ function registerProductHandlers() {
             qty_available: Number(row.qty_available) || 0,
             category: String(row.category || ""),
             shelf_life: String(row.shelf_life || ""),
+            tu_shelf_life: row.tu_shelf_life ? String(row.tu_shelf_life) : null,
             net_weight: String(row.net_weight || ""),
             item_size: String(row.item_size || ""),
             country_of_origin: String(row.country_of_origin || ""),
@@ -203,6 +205,31 @@ function registerProductHandlers() {
       }
     }
   );
+
+  // 查询指定A码的库存总数
+  ipcMain.handle("db:get-article-stock-total", async (event, articleCode) => {
+    try {
+      const db = getDatabase();
+
+      if (!articleCode || !articleCode.trim()) {
+        return { total: 0 };
+      }
+
+      const sql = `
+        SELECT SUM(qty_available) as total
+        FROM inventory
+        WHERE itm_articleid = ?
+      `;
+
+      const stmt = db.prepare(sql);
+      const result = stmt.get(articleCode.trim());
+
+      return { total: Number(result?.total) || 0 };
+    } catch (error) {
+      console.error("Get article stock total error:", error);
+      return { total: 0 };
+    }
+  });
 }
 
 module.exports = {
