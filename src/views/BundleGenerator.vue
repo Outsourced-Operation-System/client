@@ -61,7 +61,7 @@
                             <el-table-column label="A码库存" width="100" align="right">
                                 <template #default="scope">
                                     <span style="font-weight: bold;">{{ getArticleStockTotal(scope.row.article_code)
-                                    }}</span>
+                                        }}</span>
                                 </template>
                             </el-table-column>
                             <el-table-column label="SKU效期剩余月数" width="150" align="center">
@@ -216,14 +216,20 @@
         </el-row>
 
         <!-- 关键信息列表弹窗 -->
-        <el-dialog v-model="showSearchResultDialog" title="关键信息列表" width="70%" append-to-body>
+        <el-dialog v-model="showSearchResultDialog" title="关键信息列表" width="55%" append-to-body>
             <el-table ref="searchDialogTable" :data="searchDialogResults" border style="width: 100%;" max-height="500"
                 @selection-change="handleDialogSelectionChange" @row-click="handleRowClick">
                 <el-table-column type="selection" width="55" />
-                <el-table-column prop="article_code" label="A码" width="120" align="center" />
+                <el-table-column prop="article_code" label="A码" width="100" align="center" />
                 <el-table-column prop="tu" label="SKU码" width="100" align="center" />
-                <el-table-column prop="product_name_cn" label="产品名称" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="qty_available" label="库存数量" width="120" align="center">
+                <el-table-column prop="product_name_cn" label="产品名称" min-width="250" show-overflow-tooltip />
+                <el-table-column prop="declared_content" label="规格" width="100" align="center" />
+                <el-table-column prop="cn_current_price" label="货值" width="100" align="right">
+                    <template #default="scope">
+                        ¥{{ scope.row.cn_current_price || 0 }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="qty_available" label="库存数量" width="100" align="center">
                     <template #default="scope">
                         <span style="font-weight: bold;">{{ scope.row.qty_available || 0 }}</span>
                     </template>

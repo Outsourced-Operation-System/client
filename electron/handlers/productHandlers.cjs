@@ -33,8 +33,8 @@ function registerProductHandlers() {
         }
 
         if (filterZeroStock) {
-          sql += " AND (qty_available IS NULL OR qty_available > 0)";
-          countSql += " AND (qty_available IS NULL OR qty_available > 0)";
+          sql += " AND qty_available > 0";
+          countSql += " AND qty_available > 0";
         }
 
         if (filterNoInfo) {
@@ -166,7 +166,7 @@ function registerProductHandlers() {
       `;
 
         if (filterZeroStock) {
-          sql += " AND (qty_available IS NULL OR qty_available > 0)";
+          sql += " AND qty_available > 0";
         }
 
         sql += " LIMIT 100";

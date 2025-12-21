@@ -21,6 +21,9 @@ function registerDataHandlers() {
         if (type === "product") {
           // 如果是覆盖模式，先清空货品表
           if (mode === "overwrite") {
+            // 先删除所有引用货品表的 bundle_items 记录
+            db.prepare("DELETE FROM bundle_items").run();
+            // 再删除货品表数据
             db.prepare("DELETE FROM goods").run();
           }
 
@@ -336,6 +339,8 @@ function registerDataHandlers() {
   ipcMain.handle("db:clear-goods", async () => {
     try {
       const db = getDatabase();
+      // 先删除所有引用货品表的 bundle_items 记录，再删除货品表数据
+      db.prepare("DELETE FROM bundle_items").run();
       db.prepare("DELETE FROM goods").run();
       return { success: true };
     } catch (error) {
