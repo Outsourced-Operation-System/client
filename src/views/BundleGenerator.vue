@@ -1,10 +1,11 @@
 <template>
     <div class="bundle-generator">
-        <el-row :gutter="20" style="height: calc(100vh - 80px);">
+        <el-row style="height: calc(100vh - 80px); position: relative;">
             <!-- 左侧列：搜索 + 列表 -->
-            <el-col :span="16" style="height: 100%; display: flex; flex-direction: column;">
+            <el-col :span="isPreviewVisible ? 16 : 24"
+                style="height: 100%; display: flex; flex-direction: column; transition: all 0.3s ease;">
                 <!-- 第一部分：搜索条件设置 -->
-                <el-card class="box-card mb-20">
+                <el-card class="box-card" style="margin-bottom: 0; border-bottom: none; border-radius: 4px 4px 0 0;">
                     <template #header>
                         <div class="card-header">
                             <span>商品搜索</span>
@@ -33,11 +34,18 @@
                 </el-card>
 
                 <!-- 第二部分：已选商品表格 -->
-                <el-card class="box-card" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;"
+                <el-card class="box-card"
+                    style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-radius: 0 0 4px 4px;"
                     :body-style="{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '20px' }">
                     <template #header>
                         <div class="card-header">
                             <span>生成货组</span>
+                            <div v-show="!isPreviewVisible" class="value-info">
+                                <span class="value-item">主品货值: <span class="value-number">¥{{ mainValue }}</span></span>
+                                <span class="value-item">赠品货值: <span class="value-number">¥{{ giftValue }}</span></span>
+                                <span class="value-item">总货值: <span class="value-number total">¥{{ totalValue
+                                        }}</span></span>
+                            </div>
                         </div>
                     </template>
                     <div style="flex: 1; overflow: hidden;">
@@ -61,7 +69,7 @@
                             <el-table-column label="A码库存" width="100" align="right">
                                 <template #default="scope">
                                     <span style="font-weight: bold;">{{ getArticleStockTotal(scope.row.article_code)
-                                    }}</span>
+                                        }}</span>
                                 </template>
                             </el-table-column>
                             <el-table-column label="SKU效期剩余月数" width="150" align="center">
@@ -80,7 +88,7 @@
                                     {{ scope.row.shelf_life || '-' }}
                                 </template>
                             </el-table-column>
-                            <el-table-column prop="product_name_en" label="英文名" min-width="150" show-overflow-tooltip />
+                            <el-table-column prop="product_name_en" label="英文名" min-width="120" show-overflow-tooltip />
                             <el-table-column label="操作" width="100" align="center" fixed="right">
                                 <template #default="scope">
                                     <el-button type="danger" link size="small"
@@ -90,14 +98,22 @@
                         </el-table>
                     </div>
                     <div class="bundle-actions" style="display: flex; justify-content: flex-end;">
-                        <el-button type="success" @click="showPreviewAndSave" size="large"
-                            style="width: 200px;">生成货组</el-button>
+                        <el-button type="danger" @click="clearAllPreview" size="large"
+                            style="width: 200px;">清除全部</el-button>
+                        <el-button type="primary" @click="showPreviewAndSave" size="large"
+                            style="width: 200px;">新建货组</el-button>
                     </div>
                 </el-card>
             </el-col>
 
             <!-- 第三部分：信息预览（右侧） -->
-            <el-col :span="8" style="height: 102%">
+            <el-col :span="8" style="height: 100%; position: relative;" v-show="isPreviewVisible">
+                <!-- 收缩按钮 -->
+                <div class="collapse-btn" @click="togglePreview">
+                    <el-icon>
+                        <ArrowRight />
+                    </el-icon>
+                </div>
                 <el-card class="box-card" style="height: 100%; display: flex; flex-direction: column;"
                     :body-style="{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }">
                     <template #header>
@@ -139,11 +155,12 @@
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td class="label-cell">日期范围</td>
+                                        <td class="label-cell">礼盒</td>
                                         <td class="value-cell">
-                                            <el-date-picker v-model="dateRange" type="daterange" range-separator="至"
-                                                start-placeholder="开始日期" end-placeholder="结束日期" size="mid"
-                                                style="width: 93%;" value-format="YYYY-MM-DD" />
+                                            <el-radio-group v-model="hasGiftBox" size="mid">
+                                                <el-radio :label="true">有</el-radio>
+                                                <el-radio :label="false">无</el-radio>
+                                            </el-radio-group>
                                         </td>
                                     </tr>
                                     <tr>
@@ -159,7 +176,7 @@
                                         <td class="label-cell">分类</td>
                                         <td class="value-cell">
                                             <el-select v-model="selectedCategory" placeholder="请选择" size="mid"
-                                                style="width: 100%;">
+                                                style="width: 100%;" filterable allow-create default-first-option>
                                                 <el-option v-for="cat in categories" :key="cat" :label="cat"
                                                     :value="cat" />
                                             </el-select>
@@ -169,7 +186,7 @@
                                         <td class="label-cell">品类</td>
                                         <td class="value-cell">
                                             <el-select v-model="selectedProductType" placeholder="请选择" size="mid"
-                                                style="width: 100%;">
+                                                style="width: 100%;" filterable allow-create default-first-option>
                                                 <el-option v-for="type in productTypes" :key="type" :label="type"
                                                     :value="type" />
                                             </el-select>
@@ -179,7 +196,7 @@
                                         <td class="label-cell">By-SKU</td>
                                         <td class="value-cell">
                                             <el-select v-model="selectedBySku" placeholder="请选择" size="mid"
-                                                style="width: 100%;">
+                                                style="width: 100%;" filterable allow-create default-first-option>
                                                 <el-option v-for="sku in bySkuList" :key="sku" :label="sku"
                                                     :value="sku" />
                                             </el-select>
@@ -189,19 +206,10 @@
                                         <td class="label-cell">香型</td>
                                         <td class="value-cell">
                                             <el-select v-model="selectedFragrance" placeholder="请选择" size="mid"
-                                                style="width: 100%;">
+                                                style="width: 100%;" filterable allow-create default-first-option>
                                                 <el-option v-for="frag in fragrances" :key="frag" :label="frag"
                                                     :value="frag" />
                                             </el-select>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td class="label-cell">礼盒</td>
-                                        <td class="value-cell">
-                                            <el-radio-group v-model="hasGiftBox" size="mid">
-                                                <el-radio :label="true">有</el-radio>
-                                                <el-radio :label="false">无</el-radio>
-                                            </el-radio-group>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -215,8 +223,16 @@
             </el-col>
         </el-row>
 
+        <!-- 展开按钮 -->
+        <div class="expand-btn" @click="togglePreview" v-if="!isPreviewVisible && hasGenerated">
+            <el-icon>
+                <ArrowLeft />
+            </el-icon>
+        </div>
+
         <!-- 关键信息列表弹窗 -->
-        <el-dialog v-model="showSearchResultDialog" title="关键信息列表" width="55%" append-to-body>
+        <el-dialog v-model="showSearchResultDialog" title="关键信息列表" width="55%" append-to-body
+            @keyup.enter="addSelectedToBundl">
             <el-table ref="searchDialogTable" :data="searchDialogResults" border style="width: 100%;" max-height="500"
                 @selection-change="handleDialogSelectionChange" @row-click="handleRowClick">
                 <el-table-column type="selection" width="55" />
@@ -237,7 +253,22 @@
             </el-table>
             <template #footer>
                 <el-button @click="showSearchResultDialog = false">取消</el-button>
-                <el-button type="primary" @click="addSelectedToBundl">结果中搜索</el-button>
+                <el-button type="primary" @click="addSelectedToBundl">确认</el-button>
+            </template>
+        </el-dialog>
+        <el-dialog v-model="confirmClearDialogVisible" title="确认清除" width="30%" append-to-body>
+            <div style="padding: 20px 0;">
+                <p style="font-size: 16px; margin-bottom: 15px;">确定要清除所有商品和预览信息吗？</p>
+                <p style="color: #909399; font-size: 14px;">此操作将清空：</p>
+                <ul style="color: #909399; font-size: 14px; padding-left: 20px;">
+                    <li>所有已添加的商品（{{ bundleItems.length }} 个）</li>
+                    <li>货组名称、日期范围等所有预览信息</li>
+                </ul>
+                <p style="color: #f56c6c; font-size: 14px; margin-top: 15px;">此操作不可恢复！</p>
+            </div>
+            <template #footer>
+                <el-button @click="confirmClearDialogVisible = false">取消</el-button>
+                <el-button type="danger" @click="confirmClearAll">确认清除</el-button>
             </template>
         </el-dialog>
     </div>
@@ -245,17 +276,20 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { Search } from '@element-plus/icons-vue'
+import { Search, ArrowRight, ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 // 搜索相关
+const isPreviewVisible = ref(false)
+const hasGenerated = ref(false)
 const searchQuery = ref('')
-const searchType = ref('productName') // 默认选中品名
+const searchType = ref('productName')
 const filterZeroStock = ref(false)
 const showSearchResultDialog = ref(false)
 const searchDialogResults = ref<any[]>([])
 const dialogSelectedItems = ref<any[]>([])
 const searchDialogTable = ref<any>(null)
+const confirmClearDialogVisible = ref(false)
 
 // 货组商品列表
 const bundleItems = ref<any[]>([])
@@ -272,7 +306,7 @@ const selectedCategory = ref('')
 const selectedProductType = ref('')
 const selectedBySku = ref('')
 const selectedFragrance = ref('')
-const usageType = ref('self')
+const usageType = ref('cooperation')
 const hasGiftBox = ref(false)
 
 // 标签数据（从label.md获取）
@@ -332,6 +366,16 @@ const handleQuickSearch = async () => {
         if (res && res.length > 0) {
             searchDialogResults.value = res
             showSearchResultDialog.value = true
+
+            // 如果只有一个商品，自动勾选
+            if (res.length === 1) {
+                // 需要等待表格渲染完成后再选中
+                setTimeout(() => {
+                    if (searchDialogTable.value && res[0]) {
+                        searchDialogTable.value.toggleRowSelection(res[0], true)
+                    }
+                }, 100)
+            }
         } else {
             ElMessage.info('未找到匹配的商品')
         }
@@ -441,7 +485,7 @@ const generateVirtualCode = async () => {
 
         // 如果有礼盒，添加后缀
         if (hasGiftBox.value) {
-            code += '(_box)'
+            code = code + 'Gbox_'
         }
 
         return code
@@ -455,7 +499,8 @@ const generateVirtualCode = async () => {
         const timestamp = String(now.getTime()).slice(-4)
         let code = `BD${year}${month}${day}${timestamp}`
         if (hasGiftBox.value) {
-            code += '(_box)'
+            code = code + 'Gbox_'
+
         }
         return code
     }
@@ -464,26 +509,68 @@ const generateVirtualCode = async () => {
 // 监听礼盒选项变化，自动更新虚拟编码
 watch(hasGiftBox, async () => {
     if (virtualCode.value) {
-        // 移除旧的(_box)后缀
-        const baseCode = virtualCode.value.replace('(_box)', '')
+        // 移除旧的Gbox
+        const baseCode = virtualCode.value.replace('Gbox_', '')
         // 根据当前礼盒状态添加或不添加后缀
-        virtualCode.value = hasGiftBox.value ? `${baseCode}(_box)` : baseCode
+        virtualCode.value = hasGiftBox.value ? `Gbox_${baseCode}` : baseCode
     }
 })
 
 // 显示预览并准备保存
 const showPreviewAndSave = async () => {
-    if (bundleItems.value.length === 0) {
-        ElMessage.warning('请添加商品到货组')
-        return
-    }
+    // if (bundleItems.value.length === 0) {
+    //     ElMessage.warning('请添加商品到货组')
+    //     return
+    // }
 
     // 生成创建时间和虚拟编码
     const now = new Date()
     createTime.value = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`
     virtualCode.value = await generateVirtualCode()
-
+    isPreviewVisible.value = true
+    hasGenerated.value = true
     ElMessage.success('货组信息已更新，请在右侧预览并保存')
+}
+
+const clearAllPreview = () => {
+    if (bundleItems.value.length === 0) {
+        ElMessage.info('当前没有商品可清除')
+        return
+    }
+    confirmClearDialogVisible.value = true
+}
+
+const confirmClearAll = () => {
+    // 清空货组商品列表
+    bundleItems.value = []
+
+    // 清空A码库存缓存
+    articleStockCache.value.clear()
+
+    // 重置所有预览信息
+    bundleName.value = ''
+    dateRange.value = ''
+    createTime.value = ''
+    virtualCode.value = ''
+    selectedCategory.value = ''
+    selectedProductType.value = ''
+    selectedBySku.value = ''
+    selectedFragrance.value = ''
+    usageType.value = 'cooperation'
+    hasGiftBox.value = false
+
+    // 关闭预览面板
+    isPreviewVisible.value = false
+    hasGenerated.value = false
+
+    // 关闭确认对话框
+    confirmClearDialogVisible.value = false
+
+    ElMessage.success('已清除所有商品和预览信息')
+}
+
+const togglePreview = () => {
+    isPreviewVisible.value = !isPreviewVisible.value
 }
 
 // 保存货组
@@ -613,9 +700,36 @@ onMounted(() => {
 }
 
 /* 卡片标题 */
-.card-header span {
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-header>span {
     font-size: 18px;
     font-weight: bold;
+}
+
+.value-info {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.value-item {
+    font-size: 14px;
+    color: #606266;
+}
+
+.value-number {
+    font-weight: 600;
+    color: #409eff;
+}
+
+.value-number.total {
+    color: #f56c6c;
+    font-size: 15px;
 }
 
 /* 表格字号 */
@@ -683,6 +797,56 @@ onMounted(() => {
     font-size: 12px;
     color: #909399;
     margin-bottom: 5px;
+}
+
+/* 收缩按钮样式 */
+.collapse-btn {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translate(-100%, -50%);
+    width: 20px;
+    height: 60px;
+    background: #fff;
+    border: 1px solid #dcdfe6;
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.collapse-btn:hover {
+    background-color: #f5f7fa;
+    color: #409eff;
+}
+
+/* 展开按钮样式 */
+.expand-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 60px;
+    background: #fff;
+    border: 1px solid #dcdfe6;
+    border-left: none;
+    border-radius: 0 4px 4px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.expand-btn:hover {
+    background-color: #f5f7fa;
+    color: #409eff;
 }
 
 /* 表单项间距 */
