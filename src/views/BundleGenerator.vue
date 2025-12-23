@@ -11,17 +11,17 @@
                         </div>
                     </template>
                     <div class="search-area">
+                        <div class="search-type-radio">
+                            <el-radio-group v-model="searchType" size="large">
+                                <el-radio label="productName">品名</el-radio>
+                                <el-radio label="skuCode">SKU码</el-radio>
+                                <el-radio label="articleCode">A码</el-radio>
+                            </el-radio-group>
+                        </div>
                         <div class="search-input-row">
                             <el-autocomplete v-model="searchQuery" :fetch-suggestions="querySearch" placeholder="输入搜索内容"
                                 class="search-input" clearable size="large" @keyup.enter="handleQuickSearch"
                                 @select="handleSelect">
-                                <template #prepend>
-                                    <el-select v-model="searchType" placeholder="请选择" style="width: 110px" size="large">
-                                        <el-option label="品名" value="productName" />
-                                        <el-option label="SKU码" value="skuCode" />
-                                        <el-option label="A码" value="articleCode" />
-                                    </el-select>
-                                </template>
                                 <template #append>
                                     <el-button :icon="Search" @click="handleQuickSearch" size="large" />
                                 </template>
@@ -61,7 +61,7 @@
                             <el-table-column label="A码库存" width="100" align="right">
                                 <template #default="scope">
                                     <span style="font-weight: bold;">{{ getArticleStockTotal(scope.row.article_code)
-                                        }}</span>
+                                    }}</span>
                                 </template>
                             </el-table-column>
                             <el-table-column label="SKU效期剩余月数" width="150" align="center">
@@ -588,9 +588,9 @@ onMounted(() => {
     gap: 15px;
 }
 
-.search-type-group {
+.search-type-radio {
     display: flex;
-    gap: 20px;
+    align-items: center;
 }
 
 .search-input-row {
