@@ -44,7 +44,7 @@
                                 <span class="value-item">主品货值: <span class="value-number">¥{{ mainValue }}</span></span>
                                 <span class="value-item">赠品货值: <span class="value-number">¥{{ giftValue }}</span></span>
                                 <span class="value-item">总货值: <span class="value-number total">¥{{ totalValue
-                                        }}</span></span>
+                                }}</span></span>
                             </div>
                         </div>
                     </template>
@@ -69,7 +69,7 @@
                             <el-table-column label="A码库存" width="100" align="right">
                                 <template #default="scope">
                                     <span style="font-weight: bold;">{{ getArticleStockTotal(scope.row.article_code)
-                                        }}</span>
+                                    }}</span>
                                 </template>
                             </el-table-column>
                             <el-table-column label="SKU效期剩余月数" width="150" align="center">
@@ -175,8 +175,10 @@
                                     <tr>
                                         <td class="label-cell">分类</td>
                                         <td class="value-cell">
-                                            <el-select v-model="selectedCategory" placeholder="请选择" size="mid"
-                                                style="width: 100%;" filterable allow-create default-first-option>
+                                            <el-select v-model="selectedCategory" placeholder="输入关键字搜索" size="mid"
+                                                style="width: 100%;" filterable remote
+                                                :remote-method="(query: string) => searchLabels('category', query)"
+                                                :loading="categoryLoading" @focus="loadCategoryOptions">
                                                 <el-option v-for="cat in categories" :key="cat" :label="cat"
                                                     :value="cat" />
                                             </el-select>
@@ -185,8 +187,10 @@
                                     <tr>
                                         <td class="label-cell">品类</td>
                                         <td class="value-cell">
-                                            <el-select v-model="selectedProductType" placeholder="请选择" size="mid"
-                                                style="width: 100%;" filterable allow-create default-first-option>
+                                            <el-select v-model="selectedProductType" placeholder="输入关键字搜索" size="mid"
+                                                style="width: 100%;" filterable remote
+                                                :remote-method="(query: string) => searchLabels('productType', query)"
+                                                :loading="productTypeLoading" @focus="loadProductTypeOptions">
                                                 <el-option v-for="type in productTypes" :key="type" :label="type"
                                                     :value="type" />
                                             </el-select>
@@ -195,8 +199,10 @@
                                     <tr>
                                         <td class="label-cell">By-SKU</td>
                                         <td class="value-cell">
-                                            <el-select v-model="selectedBySku" placeholder="请选择" size="mid"
-                                                style="width: 100%;" filterable allow-create default-first-option>
+                                            <el-select v-model="selectedBySku" placeholder="输入关键字搜索" size="mid"
+                                                style="width: 100%;" filterable remote
+                                                :remote-method="(query: string) => searchLabels('bySku', query)"
+                                                :loading="bySkuLoading" @focus="loadBySkuOptions">
                                                 <el-option v-for="sku in bySkuList" :key="sku" :label="sku"
                                                     :value="sku" />
                                             </el-select>
@@ -205,11 +211,20 @@
                                     <tr>
                                         <td class="label-cell">香型</td>
                                         <td class="value-cell">
-                                            <el-select v-model="selectedFragrance" placeholder="请选择" size="mid"
-                                                style="width: 100%;" filterable allow-create default-first-option>
+                                            <el-select v-model="selectedFragrance" placeholder="输入关键字搜索" size="mid"
+                                                style="width: 100%;" filterable remote
+                                                :remote-method="(query: string) => searchLabels('fragrance', query)"
+                                                :loading="fragranceLoading" @focus="loadFragranceOptions">
                                                 <el-option v-for="frag in fragrances" :key="frag" :label="frag"
                                                     :value="frag" />
                                             </el-select>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label-cell">结束日期</td>
+                                        <td class="value-cell">
+                                            <el-date-picker v-model="endDate" type="date" placeholder="选择结束日期"
+                                                size="mid" style="width: 93%;" value-format="YYYY-MM-DD" />
                                         </td>
                                     </tr>
                                 </tbody>
@@ -299,7 +314,7 @@ const articleStockCache = ref<Map<string, number>>(new Map())
 
 // 信息预览相关
 const bundleName = ref('')
-const dateRange = ref<[string, string] | ''>('')
+const endDate = ref('')
 const createTime = ref('')
 const virtualCode = ref('')
 const selectedCategory = ref('')
@@ -309,11 +324,17 @@ const selectedFragrance = ref('')
 const usageType = ref('cooperation')
 const hasGiftBox = ref(false)
 
-// 标签数据（从label.md获取）
-const categories = ref(['车载香氛', '身体护理', '家居香薰', '彩妆香水', '礼品'])
-const productTypes = ref(['车载香氛', '发泡沐浴露', '护手霜', '磨砂膏', '沐浴油', '干爽护理油', '润肤乳', '香皂', '身体慕斯', '身体乳', '身体乳精华', '藤条香薰', '香氛喷雾', '香体喷雾', '香薰蜡烛', '官方礼盒', '自组套组混合品类', '非正装', '非卖品', '润手乳', '香水', '洗手液', '面霜', '洗洁精'])
-const bySkuList = ref(['车载香氛', '车载香氛补充装', '发泡沐浴露', '发泡沐浴露*2', '发泡沐浴露*3', '护手霜', '护手霜*3', '磨砂膏', '磨砂膏*2', '沐浴油', '沐浴油*2', '沐浴油*3', '干爽护理油', '润肤乳', '香皂', '身体慕斯', '身体乳', '身体乳精华', '藤条香薰', '香氛喷雾', '香体喷雾', '香薰蜡烛', '自组套组单一品类', '自组套组混合品类', '非正装', '非卖品', '润手乳', '香水', '洗手液', '官方礼盒', '面霜', '洗洁精'])
-const fragrances = ref(['阿姆斯特丹', '梵心', '赋能', '琥珀', '静', '夜樱', '樱花', '予善', '珍藏', '男士', '运动', '其它', '混合香气', '非卖品'])
+// 标签数据（从数据库动态加载）
+const categories = ref<string[]>([])
+const productTypes = ref<string[]>([])
+const bySkuList = ref<string[]>([])
+const fragrances = ref<string[]>([])
+
+// 标签加载状态
+const categoryLoading = ref(false)
+const productTypeLoading = ref(false)
+const bySkuLoading = ref(false)
+const fragranceLoading = ref(false)
 
 // 自动完成搜索建议
 const querySearch = async (queryString: string, cb: any) => {
@@ -527,9 +548,9 @@ const showPreviewAndSave = async () => {
     const now = new Date()
     createTime.value = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`
     virtualCode.value = await generateVirtualCode()
+    ElMessage.success('请在右侧填写货组信息并保存')
     isPreviewVisible.value = true
     hasGenerated.value = true
-    ElMessage.success('货组信息已更新，请在右侧预览并保存')
 }
 
 const clearAllPreview = () => {
@@ -549,7 +570,7 @@ const confirmClearAll = () => {
 
     // 重置所有预览信息
     bundleName.value = ''
-    dateRange.value = ''
+    endDate.value = ''
     createTime.value = ''
     virtualCode.value = ''
     selectedCategory.value = ''
@@ -581,8 +602,8 @@ const saveBundle = async () => {
         return
     }
 
-    if (!dateRange.value || dateRange.value.length !== 2) {
-        ElMessage.warning('请选择日期范围')
+    if (!endDate.value) {
+        ElMessage.warning('请选择结束日期')
         return
     }
 
@@ -615,8 +636,8 @@ const saveBundle = async () => {
         name: bundleName.value,
         virtualCode: virtualCode.value,
         createTime: createTime.value,
-        startDate: dateRange.value ? dateRange.value[0] : '',
-        endDate: dateRange.value ? dateRange.value[1] : '',
+        startDate: createTime.value,
+        endDate: endDate.value,
         items: JSON.parse(JSON.stringify(bundleItems.value)),
         mainValue: parseFloat(mainValue.value),
         giftValue: parseFloat(giftValue.value),
@@ -635,7 +656,7 @@ const saveBundle = async () => {
             ElMessage.success(`货组保存成功！虚拟编码：${virtualCode.value}`)
             // 重置表单
             bundleName.value = ''
-            dateRange.value = ''
+            endDate.value = ''
             bundleItems.value = []
             createTime.value = ''
             virtualCode.value = ''
@@ -651,6 +672,142 @@ const saveBundle = async () => {
     } catch (e) {
         console.error(e)
         ElMessage.error('保存出错')
+    }
+}
+
+// 搜索标签（远程搜索）
+const searchLabels = async (field: string, query: string) => {
+    if (!query || query.trim().length === 0) {
+        // 如果查询为空，加载所有选项
+        switch (field) {
+            case 'category':
+                await loadCategoryOptions()
+                break
+            case 'productType':
+                await loadProductTypeOptions()
+                break
+            case 'bySku':
+                await loadBySkuOptions()
+                break
+            case 'fragrance':
+                await loadFragranceOptions()
+                break
+        }
+        return
+    }
+
+    try {
+        // 设置加载状态
+        switch (field) {
+            case 'category':
+                categoryLoading.value = true
+                break
+            case 'productType':
+                productTypeLoading.value = true
+                break
+            case 'bySku':
+                bySkuLoading.value = true
+                break
+            case 'fragrance':
+                fragranceLoading.value = true
+                break
+        }
+
+        const res = await (window as any).electronAPI.searchLabels(field, query)
+
+        if (res.success) {
+            // 更新对应的选项列表
+            switch (field) {
+                case 'category':
+                    categories.value = res.data
+                    break
+                case 'productType':
+                    productTypes.value = res.data
+                    break
+                case 'bySku':
+                    bySkuList.value = res.data
+                    break
+                case 'fragrance':
+                    fragrances.value = res.data
+                    break
+            }
+        }
+    } catch (e) {
+        console.error('搜索标签失败:', e)
+    } finally {
+        // 清除加载状态
+        categoryLoading.value = false
+        productTypeLoading.value = false
+        bySkuLoading.value = false
+        fragranceLoading.value = false
+    }
+}
+
+// 加载分类选项
+const loadCategoryOptions = async () => {
+    if (categories.value.length > 0) return
+
+    try {
+        categoryLoading.value = true
+        const res = await (window as any).electronAPI.getLabelValues('category')
+        if (res.success) {
+            categories.value = res.data
+        }
+    } catch (e) {
+        console.error('加载分类选项失败:', e)
+    } finally {
+        categoryLoading.value = false
+    }
+}
+
+// 加载品类选项
+const loadProductTypeOptions = async () => {
+    if (productTypes.value.length > 0) return
+
+    try {
+        productTypeLoading.value = true
+        const res = await (window as any).electronAPI.getLabelValues('productType')
+        if (res.success) {
+            productTypes.value = res.data
+        }
+    } catch (e) {
+        console.error('加载品类选项失败:', e)
+    } finally {
+        productTypeLoading.value = false
+    }
+}
+
+// 加载By-SKU选项
+const loadBySkuOptions = async () => {
+    if (bySkuList.value.length > 0) return
+
+    try {
+        bySkuLoading.value = true
+        const res = await (window as any).electronAPI.getLabelValues('bySku')
+        if (res.success) {
+            bySkuList.value = res.data
+        }
+    } catch (e) {
+        console.error('加载By-SKU选项失败:', e)
+    } finally {
+        bySkuLoading.value = false
+    }
+}
+
+// 加载香型选项
+const loadFragranceOptions = async () => {
+    if (fragrances.value.length > 0) return
+
+    try {
+        fragranceLoading.value = true
+        const res = await (window as any).electronAPI.getLabelValues('fragrance')
+        if (res.success) {
+            fragrances.value = res.data
+        }
+    } catch (e) {
+        console.error('加载香型选项失败:', e)
+    } finally {
+        fragranceLoading.value = false
     }
 }
 

@@ -46,4 +46,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
   exportInventory: () => ipcRenderer.invoke("db:export-inventory"),
   clearGoods: () => ipcRenderer.invoke("db:clear-goods"),
   clearInventory: () => ipcRenderer.invoke("db:clear-inventory"),
+  // 备份相关
+  backupDatabase: () => ipcRenderer.invoke("db:backup-database"),
+  getBackups: () => ipcRenderer.invoke("db:get-backups"),
+  restoreBackup: (timestamp) =>
+    ipcRenderer.invoke("db:restore-backup", timestamp),
+  deleteBackup: (timestamp) =>
+    ipcRenderer.invoke("db:delete-backup", timestamp),
+  getLastBackupTime: () => ipcRenderer.invoke("db:get-last-backup-time"),
+  // 标签相关
+  searchLabels: (field, keyword) =>
+    ipcRenderer.invoke("db:search-labels", field, keyword),
+  getLabelValues: (field) => ipcRenderer.invoke("db:get-label-values", field),
 });

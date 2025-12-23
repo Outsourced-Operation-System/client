@@ -1,7 +1,9 @@
-const { ipcMain, dialog } = require("electron");
-const { getDatabase } = require("../database/index.cjs");
+const { ipcMain, dialog, app } = require("electron");
+const { getDatabase, getDatabasePath } = require("../database/index.cjs");
 const xlsx = require("xlsx");
 const dayjs = require("dayjs");
+const fs = require("fs");
+const path = require("path");
 
 /**
  * 注册数据导入导出相关的 IPC handlers
@@ -88,6 +90,29 @@ function registerDataHandlers() {
                 now
               );
             }
+          }
+        } else if (type === "label") {
+          // 标签表导入 - 始终覆盖
+          db.prepare("DELETE FROM labels").run();
+
+          // 标签表字段映射
+          const stmt = db.prepare(`
+            INSERT INTO labels (
+              category, product_type, by_sku, fragrance, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?)
+          `);
+
+          for (const row of data) {
+            // 获取第一、二、三、四列
+            const values = Object.values(row);
+            stmt.run(
+              String(values[0] || ""),
+              String(values[1] || ""),
+              String(values[2] || ""),
+              String(values[3] || ""),
+              now
+            );
           }
         } else if (type === "inventory") {
           // 如果是覆盖模式，先清空库存表
@@ -357,6 +382,292 @@ function registerDataHandlers() {
       return { success: true };
     } catch (error) {
       console.error("Clear inventory error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 获取备份目录路径
+  function getBackupDir() {
+    const backupDir = path.join(app.getPath("appData"), "bundle", "BackUp");
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    return backupDir;
+  }
+
+  // 备份数据库
+  ipcMain.handle("db:backup-database", async () => {
+    try {
+      const db = getDatabase();
+      const dbPath = getDatabasePath();
+      const backupDir = getBackupDir();
+      const timestamp = Date.now();
+      const backupFileName = `${timestamp}.db`;
+      const backupPath = path.join(backupDir, backupFileName);
+
+      // 执行 WAL checkpoint，确保所有数据都写入主数据库文件
+      try {
+        db.pragma("wal_checkpoint(TRUNCATE)");
+      } catch (e) {
+        console.warn("WAL checkpoint failed during backup:", e);
+      }
+
+      // 复制数据库文件
+      fs.copyFileSync(dbPath, backupPath);
+
+      // 同时复制 WAL 文件（如果存在）
+      const walPath = dbPath + "-wal";
+      const shmPath = dbPath + "-shm";
+      if (fs.existsSync(walPath)) {
+        fs.copyFileSync(walPath, backupPath + "-wal");
+      }
+      if (fs.existsSync(shmPath)) {
+        fs.copyFileSync(shmPath, backupPath + "-shm");
+      }
+
+      return { success: true, timestamp, backupPath };
+    } catch (error) {
+      console.error("Backup database error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 获取所有备份列表
+  ipcMain.handle("db:get-backups", async () => {
+    try {
+      const backupDir = getBackupDir();
+      const files = fs.readdirSync(backupDir);
+
+      // 过滤出 .db 文件并解析时间戳
+      const backups = files
+        .filter(
+          (f) => f.endsWith(".db") && !f.includes("-wal") && !f.includes("-shm")
+        )
+        .map((f) => {
+          const timestamp = parseInt(f.replace(".db", ""), 10);
+          return {
+            filename: f,
+            timestamp,
+            datetime: dayjs(timestamp).format("YYYY-MM-DD HH:mm:ss"),
+          };
+        })
+        .sort((a, b) => b.timestamp - a.timestamp); // 按时间降序
+
+      return { success: true, backups };
+    } catch (error) {
+      console.error("Get backups error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 恢复备份
+  ipcMain.handle("db:restore-backup", async (event, timestamp) => {
+    try {
+      const backupDir = getBackupDir();
+      const backupFileName = `${timestamp}.db`;
+      const backupPath = path.join(backupDir, backupFileName);
+
+      if (!fs.existsSync(backupPath)) {
+        return { success: false, error: "备份文件不存在" };
+      }
+
+      // 获取当前数据库实例并执行 checkpoint
+      const db = getDatabase();
+      const dbPath = getDatabasePath();
+
+      // 执行 WAL checkpoint，将 WAL 文件内容写回主数据库文件
+      try {
+        db.pragma("wal_checkpoint(TRUNCATE)");
+      } catch (e) {
+        console.warn("WAL checkpoint failed:", e);
+      }
+
+      // 先备份当前数据
+      const autoBackupTimestamp = Date.now();
+      const autoBackupPath = path.join(backupDir, `${autoBackupTimestamp}.db`);
+      fs.copyFileSync(dbPath, autoBackupPath);
+
+      // 复制 WAL 文件（如果存在）
+      const walPath = dbPath + "-wal";
+      const shmPath = dbPath + "-shm";
+      if (fs.existsSync(walPath)) {
+        fs.copyFileSync(walPath, autoBackupPath + "-wal");
+      }
+      if (fs.existsSync(shmPath)) {
+        fs.copyFileSync(shmPath, autoBackupPath + "-shm");
+      }
+
+      // 关闭当前数据库连接
+      db.close();
+
+      // 等待确保数据库完全关闭
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // 删除现有的 WAL 和 SHM 文件
+      if (fs.existsSync(walPath)) {
+        try {
+          fs.unlinkSync(walPath);
+        } catch (e) {
+          console.warn("Failed to delete WAL file:", e);
+        }
+      }
+      if (fs.existsSync(shmPath)) {
+        try {
+          fs.unlinkSync(shmPath);
+        } catch (e) {
+          console.warn("Failed to delete SHM file:", e);
+        }
+      }
+
+      // 只恢复主数据库文件
+      // 不复制 WAL 和 SHM 文件，让 SQLite 在重新打开时自动创建新的
+      fs.copyFileSync(backupPath, dbPath);
+
+      // 重新初始化数据库（SQLite 会自动创建新的 WAL 和 SHM 文件）
+      const { reinitDatabase } = require("../database/index.cjs");
+      reinitDatabase();
+
+      return { success: true, autoBackupTimestamp };
+    } catch (error) {
+      console.error("Restore backup error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 删除备份
+  ipcMain.handle("db:delete-backup", async (event, timestamp) => {
+    try {
+      const backupDir = getBackupDir();
+      const backupFileName = `${timestamp}.db`;
+      const backupPath = path.join(backupDir, backupFileName);
+
+      if (!fs.existsSync(backupPath)) {
+        return { success: false, error: "备份文件不存在" };
+      }
+
+      // 删除备份文件
+      fs.unlinkSync(backupPath);
+
+      // 删除相关的 WAL 和 SHM 文件（如果存在）
+      const walPath = backupPath + "-wal";
+      const shmPath = backupPath + "-shm";
+      if (fs.existsSync(walPath)) {
+        fs.unlinkSync(walPath);
+      }
+      if (fs.existsSync(shmPath)) {
+        fs.unlinkSync(shmPath);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Delete backup error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 获取最新备份时间
+  ipcMain.handle("db:get-last-backup-time", async () => {
+    try {
+      const backupDir = getBackupDir();
+      const files = fs.readdirSync(backupDir);
+
+      const dbFiles = files
+        .filter(
+          (f) => f.endsWith(".db") && !f.includes("-wal") && !f.includes("-shm")
+        )
+        .map((f) => parseInt(f.replace(".db", ""), 10))
+        .sort((a, b) => b - a);
+
+      if (dbFiles.length === 0) {
+        return { success: true, lastBackupTime: null };
+      }
+
+      return {
+        success: true,
+        lastBackupTime: dayjs(dbFiles[0]).format("YYYY-MM-DD HH:mm:ss"),
+      };
+    } catch (error) {
+      console.error("Get last backup time error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 根据关键字搜索标签（模糊查询）
+  ipcMain.handle("db:search-labels", async (event, field, keyword) => {
+    try {
+      const db = getDatabase();
+
+      // 字段映射
+      const fieldMap = {
+        category: "category",
+        productType: "product_type",
+        bySku: "by_sku",
+        fragrance: "fragrance",
+      };
+
+      const dbField = fieldMap[field];
+      if (!dbField) {
+        return { success: false, error: "无效的字段名" };
+      }
+
+      // 模糊查询，去重后返回
+      const query = `
+        SELECT DISTINCT ${dbField} as value
+        FROM labels
+        WHERE ${dbField} IS NOT NULL 
+          AND ${dbField} != ''
+          AND ${dbField} LIKE ?
+        ORDER BY ${dbField}
+        LIMIT 50
+      `;
+
+      const results = db.prepare(query).all(`%${keyword}%`);
+
+      return {
+        success: true,
+        data: results.map((row) => row.value).filter((v) => v),
+      };
+    } catch (error) {
+      console.error("Search labels error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 获取标签字段的所有唯一值（用于下拉列表初始化）
+  ipcMain.handle("db:get-label-values", async (event, field) => {
+    try {
+      const db = getDatabase();
+
+      // 字段映射
+      const fieldMap = {
+        category: "category",
+        productType: "product_type",
+        bySku: "by_sku",
+        fragrance: "fragrance",
+      };
+
+      const dbField = fieldMap[field];
+      if (!dbField) {
+        return { success: false, error: "无效的字段名" };
+      }
+
+      // 查询所有不重复的值
+      const query = `
+        SELECT DISTINCT ${dbField} as value
+        FROM labels
+        WHERE ${dbField} IS NOT NULL 
+          AND ${dbField} != ''
+        ORDER BY ${dbField}
+      `;
+
+      const results = db.prepare(query).all();
+
+      return {
+        success: true,
+        data: results.map((row) => row.value).filter((v) => v),
+      };
+    } catch (error) {
+      console.error("Get label values error:", error);
       return { success: false, error: error.message };
     }
   });
