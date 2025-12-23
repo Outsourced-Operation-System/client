@@ -80,7 +80,7 @@
                             <el-table-column prop="declared_content" label="规格" width="100" align="center" />
                             <el-table-column prop="cn_current_price" label="货值" width="100" align="right">
                                 <template #default="scope">
-                                    ¥{{ scope.row.cn_current_price || 0 }}
+                                    ¥{{ scope.row.cn_current_price || '-' }}
                                 </template>
                             </el-table-column>
                             <el-table-column prop="shelf_life" label="保质期" width="100" align="center">
@@ -100,7 +100,7 @@
                     <div class="bundle-actions" style="display: flex; justify-content: flex-end;">
                         <el-button type="danger" @click="clearAllPreview" size="large"
                             style="width: 200px;">清除全部</el-button>
-                        <el-button type="primary" @click="showPreviewAndSave" size="large"
+                        <el-button type="primary" @click="showPreviewAndSave" size="large" v-if="!hasGenerated"
                             style="width: 200px;">新建货组</el-button>
                     </div>
                 </el-card>
@@ -178,7 +178,7 @@
                                             <el-select v-model="selectedCategory" placeholder="输入关键字搜索" size="mid"
                                                 style="width: 100%;" filterable remote
                                                 :remote-method="(query: string) => searchLabels('category', query)"
-                                                :loading="categoryLoading" @focus="loadCategoryOptions">
+                                                :loading="categoryLoading">
                                                 <el-option v-for="cat in categories" :key="cat" :label="cat"
                                                     :value="cat" />
                                             </el-select>
@@ -190,7 +190,7 @@
                                             <el-select v-model="selectedProductType" placeholder="输入关键字搜索" size="mid"
                                                 style="width: 100%;" filterable remote
                                                 :remote-method="(query: string) => searchLabels('productType', query)"
-                                                :loading="productTypeLoading" @focus="loadProductTypeOptions">
+                                                :loading="productTypeLoading">
                                                 <el-option v-for="type in productTypes" :key="type" :label="type"
                                                     :value="type" />
                                             </el-select>
@@ -202,7 +202,7 @@
                                             <el-select v-model="selectedBySku" placeholder="输入关键字搜索" size="mid"
                                                 style="width: 100%;" filterable remote
                                                 :remote-method="(query: string) => searchLabels('bySku', query)"
-                                                :loading="bySkuLoading" @focus="loadBySkuOptions">
+                                                :loading="bySkuLoading">
                                                 <el-option v-for="sku in bySkuList" :key="sku" :label="sku"
                                                     :value="sku" />
                                             </el-select>
@@ -214,7 +214,7 @@
                                             <el-select v-model="selectedFragrance" placeholder="输入关键字搜索" size="mid"
                                                 style="width: 100%;" filterable remote
                                                 :remote-method="(query: string) => searchLabels('fragrance', query)"
-                                                :loading="fragranceLoading" @focus="loadFragranceOptions">
+                                                :loading="fragranceLoading">
                                                 <el-option v-for="frag in fragrances" :key="frag" :label="frag"
                                                     :value="frag" />
                                             </el-select>
@@ -290,9 +290,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { Search, ArrowRight, ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+
+// 持久化存储的 key
+const STORAGE_KEY = 'bundle_generator_draft'
 
 // 搜索相关
 const isPreviewVisible = ref(false)
@@ -301,6 +304,7 @@ const searchQuery = ref('')
 const searchType = ref('productName')
 const filterZeroStock = ref(false)
 const showSearchResultDialog = ref(false)
+const suggestionUsed = ref(false)
 const searchDialogResults = ref<any[]>([])
 const dialogSelectedItems = ref<any[]>([])
 const searchDialogTable = ref<any>(null)
@@ -338,7 +342,8 @@ const fragranceLoading = ref(false)
 
 // 自动完成搜索建议
 const querySearch = async (queryString: string, cb: any) => {
-    if (!queryString || searchType.value !== 'productName') {
+
+    if (!queryString || searchType.value !== 'productName' || suggestionUsed.value) {
         cb([])
         return
     }
@@ -361,6 +366,13 @@ const handleSelect = (item: any) => {
     searchQuery.value = item.value
     handleQuickSearch()
 }
+
+// 监听搜索词变化，清除"已使用建议"标志
+watch(searchQuery, () => {
+    // console.log("搜索词变化，重置 suggestionUsed")
+    // console.log(suggestionUsed.value)
+    suggestionUsed.value = false
+})
 
 // 快速搜索（打开关键信息列表弹窗）
 const handleQuickSearch = async () => {
@@ -390,7 +402,6 @@ const handleQuickSearch = async () => {
 
             // 如果只有一个商品，自动勾选
             if (res.length === 1) {
-                // 需要等待表格渲染完成后再选中
                 setTimeout(() => {
                     if (searchDialogTable.value && res[0]) {
                         searchDialogTable.value.toggleRowSelection(res[0], true)
@@ -425,7 +436,7 @@ const addSelectedToBundl = () => {
         ElMessage.warning('请至少选择一个商品')
         return
     }
-
+    suggestionUsed.value = true
     dialogSelectedItems.value.forEach(item => {
         // 检查是否已存在
         const exists = bundleItems.value.find(b => b.id === item.id)
@@ -530,12 +541,93 @@ const generateVirtualCode = async () => {
 // 监听礼盒选项变化，自动更新虚拟编码
 watch(hasGiftBox, async () => {
     if (virtualCode.value) {
-        // 移除旧的Gbox
         const baseCode = virtualCode.value.replace('Gbox_', '')
-        // 根据当前礼盒状态添加或不添加后缀
         virtualCode.value = hasGiftBox.value ? `Gbox_${baseCode}` : baseCode
     }
 })
+
+// 保存草稿到 localStorage
+const saveDraft = () => {
+    try {
+        const draft = {
+            bundleItems: bundleItems.value,
+            bundleName: bundleName.value,
+            endDate: endDate.value,
+            createTime: createTime.value,
+            virtualCode: virtualCode.value,
+            selectedCategory: selectedCategory.value,
+            selectedProductType: selectedProductType.value,
+            selectedBySku: selectedBySku.value,
+            selectedFragrance: selectedFragrance.value,
+            usageType: usageType.value,
+            hasGiftBox: hasGiftBox.value,
+            isPreviewVisible: isPreviewVisible.value,
+            hasGenerated: hasGenerated.value,
+            articleStockCache: Array.from(articleStockCache.value.entries()),
+            timestamp: Date.now()
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(draft))
+    } catch (e) {
+        console.error('保存草稿失败:', e)
+    }
+}
+
+// 从 localStorage 加载草稿
+const loadDraft = () => {
+    try {
+        const draftStr = localStorage.getItem(STORAGE_KEY)
+        if (!draftStr) return false
+
+        const draft = JSON.parse(draftStr)
+
+        // 恢复数据
+        bundleItems.value = draft.bundleItems || []
+        bundleName.value = draft.bundleName || ''
+        endDate.value = draft.endDate || ''
+        createTime.value = draft.createTime || ''
+        virtualCode.value = draft.virtualCode || ''
+        selectedCategory.value = draft.selectedCategory || ''
+        selectedProductType.value = draft.selectedProductType || ''
+        selectedBySku.value = draft.selectedBySku || ''
+        selectedFragrance.value = draft.selectedFragrance || ''
+        usageType.value = draft.usageType || 'cooperation'
+        hasGiftBox.value = draft.hasGiftBox || false
+        isPreviewVisible.value = draft.isPreviewVisible || false
+        hasGenerated.value = draft.hasGenerated || false
+
+        // 恢复 A码库存缓存
+        if (draft.articleStockCache && Array.isArray(draft.articleStockCache)) {
+            articleStockCache.value = new Map(draft.articleStockCache)
+        }
+
+        // 如果有商品，重新查询可能更新的A码库存
+        bundleItems.value.forEach(item => {
+            if (item.article_code) {
+                fetchArticleStockTotal(item.article_code)
+            }
+        })
+    } catch (e) {
+        console.error('加载草稿失败:', e)
+    }
+}
+
+// 清除草稿
+const clearDraft = () => {
+    try {
+        localStorage.removeItem(STORAGE_KEY)
+    } catch (e) {
+        console.error('清除草稿失败:', e)
+    }
+}
+
+// 监听关键数据变化，自动保存草稿
+watch([bundleItems, bundleName, endDate, selectedCategory, selectedProductType,
+    selectedBySku, selectedFragrance, usageType, hasGiftBox, isPreviewVisible],
+    () => {
+        saveDraft()
+    },
+    { deep: true }
+)
 
 // 显示预览并准备保存
 const showPreviewAndSave = async () => {
@@ -554,7 +646,7 @@ const showPreviewAndSave = async () => {
 }
 
 const clearAllPreview = () => {
-    if (bundleItems.value.length === 0) {
+    if (bundleItems.value.length === 0 && !hasGenerated.value) {
         ElMessage.info('当前没有商品可清除')
         return
     }
@@ -583,6 +675,9 @@ const confirmClearAll = () => {
     // 关闭预览面板
     isPreviewVisible.value = false
     hasGenerated.value = false
+
+    // 清除持久化草稿
+    clearDraft()
 
     // 关闭确认对话框
     confirmClearDialogVisible.value = false
@@ -666,6 +761,11 @@ const saveBundle = async () => {
             selectedFragrance.value = ''
             usageType.value = 'self'
             hasGiftBox.value = false
+
+            // 清除持久化草稿
+            clearDraft()
+            isPreviewVisible.value = false
+            hasGenerated.value = false
         } else {
             ElMessage.error('保存失败: ' + res.error)
         }
@@ -675,27 +775,8 @@ const saveBundle = async () => {
     }
 }
 
-// 搜索标签（远程搜索）
+// 搜索标签（远程搜索）- 输入框变动时立即搜索
 const searchLabels = async (field: string, query: string) => {
-    if (!query || query.trim().length === 0) {
-        // 如果查询为空，加载所有选项
-        switch (field) {
-            case 'category':
-                await loadCategoryOptions()
-                break
-            case 'productType':
-                await loadProductTypeOptions()
-                break
-            case 'bySku':
-                await loadBySkuOptions()
-                break
-            case 'fragrance':
-                await loadFragranceOptions()
-                break
-        }
-        return
-    }
-
     try {
         // 设置加载状态
         switch (field) {
@@ -713,7 +794,9 @@ const searchLabels = async (field: string, query: string) => {
                 break
         }
 
-        const res = await (window as any).electronAPI.searchLabels(field, query)
+        // 无论是否有查询内容，都执行搜索
+        // 空查询会返回所有数据（由后端limit控制数量）
+        const res = await (window as any).electronAPI.searchLabels(field, query || '')
 
         if (res.success) {
             // 更新对应的选项列表
@@ -743,76 +826,14 @@ const searchLabels = async (field: string, query: string) => {
     }
 }
 
-// 加载分类选项
-const loadCategoryOptions = async () => {
-    if (categories.value.length > 0) return
-
-    try {
-        categoryLoading.value = true
-        const res = await (window as any).electronAPI.getLabelValues('category')
-        if (res.success) {
-            categories.value = res.data
-        }
-    } catch (e) {
-        console.error('加载分类选项失败:', e)
-    } finally {
-        categoryLoading.value = false
-    }
-}
-
-// 加载品类选项
-const loadProductTypeOptions = async () => {
-    if (productTypes.value.length > 0) return
-
-    try {
-        productTypeLoading.value = true
-        const res = await (window as any).electronAPI.getLabelValues('productType')
-        if (res.success) {
-            productTypes.value = res.data
-        }
-    } catch (e) {
-        console.error('加载品类选项失败:', e)
-    } finally {
-        productTypeLoading.value = false
-    }
-}
-
-// 加载By-SKU选项
-const loadBySkuOptions = async () => {
-    if (bySkuList.value.length > 0) return
-
-    try {
-        bySkuLoading.value = true
-        const res = await (window as any).electronAPI.getLabelValues('bySku')
-        if (res.success) {
-            bySkuList.value = res.data
-        }
-    } catch (e) {
-        console.error('加载By-SKU选项失败:', e)
-    } finally {
-        bySkuLoading.value = false
-    }
-}
-
-// 加载香型选项
-const loadFragranceOptions = async () => {
-    if (fragrances.value.length > 0) return
-
-    try {
-        fragranceLoading.value = true
-        const res = await (window as any).electronAPI.getLabelValues('fragrance')
-        if (res.success) {
-            fragrances.value = res.data
-        }
-    } catch (e) {
-        console.error('加载香型选项失败:', e)
-    } finally {
-        fragranceLoading.value = false
-    }
-}
-
 onMounted(() => {
-    // 初始化
+    // 加载持久化的草稿数据
+    loadDraft()
+})
+
+// 组件卸载前保存数据
+onBeforeUnmount(() => {
+    saveDraft()
 })
 </script>
 

@@ -103,16 +103,63 @@ function registerDataHandlers() {
             VALUES (?, ?, ?, ?, ?)
           `);
 
-          for (const row of data) {
-            // 获取第一、二、三、四列
-            const values = Object.values(row);
-            stmt.run(
-              String(values[0] || ""),
-              String(values[1] || ""),
-              String(values[2] || ""),
-              String(values[3] || ""),
-              now
-            );
+          // 标签表特殊处理：每列独立读取，而不是按行读取
+          // 因为每列的数据量可能不同
+          const rawSheet = xlsx.utils.sheet_to_json(sheet, { header: 1 }); // 获取原始数组格式
+
+          if (rawSheet.length > 0) {
+            const headers = rawSheet[0]; // 第一行是表头
+            const columnData = {}; // 存储每列的数据
+
+            // 初始化每列的数据数组
+            headers.forEach((header, index) => {
+              columnData[index] = [];
+            });
+
+            // 从第二行开始读取数据
+            for (let i = 1; i < rawSheet.length; i++) {
+              const row = rawSheet[i];
+              row.forEach((cell, colIndex) => {
+                // 只添加非空值
+                if (cell !== undefined && cell !== null && cell !== "") {
+                  columnData[colIndex].push(String(cell).trim());
+                }
+              });
+            }
+
+            // 按列插入数据
+            // 第0列: 分类(category)
+            // 第1列: 品类(product_type)
+            // 第2列: 品类 By-sku(by_sku)
+            // 第3列: 香型(fragrance)
+
+            // 第0列 - 分类
+            if (columnData[0]) {
+              columnData[0].forEach((value) => {
+                stmt.run(String(value), "", "", "", now);
+              });
+            }
+
+            // 第1列 - 品类
+            if (columnData[1]) {
+              columnData[1].forEach((value) => {
+                stmt.run("", String(value), "", "", now);
+              });
+            }
+
+            // 第2列 - 品类 By-sku
+            if (columnData[2]) {
+              columnData[2].forEach((value) => {
+                stmt.run("", "", String(value), "", now);
+              });
+            }
+
+            // 第3列 - 香型
+            if (columnData[3]) {
+              columnData[3].forEach((value) => {
+                stmt.run("", "", "", String(value), now);
+              });
+            }
           }
         } else if (type === "inventory") {
           // 如果是覆盖模式，先清空库存表
@@ -611,6 +658,7 @@ function registerDataHandlers() {
       }
 
       // 模糊查询，去重后返回
+      // 支持空查询，返回所有选项（受LIMIT限制）
       const query = `
         SELECT DISTINCT ${dbField} as value
         FROM labels
@@ -621,7 +669,7 @@ function registerDataHandlers() {
         LIMIT 50
       `;
 
-      const results = db.prepare(query).all(`%${keyword}%`);
+      const results = db.prepare(query).all(`%${keyword || ""}%`);
 
       return {
         success: true,

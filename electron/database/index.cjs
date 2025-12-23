@@ -148,25 +148,22 @@ function createTables() {
     );
   `);
 
-  // 先删除旧视图再创建新视图（如果存在）
-  db.exec("DROP VIEW IF EXISTS products_view");
-
   // 库存表聚合视图
   db.exec(`CREATE VIEW IF NOT EXISTS inventory_aggregated_view AS
           SELECT 
             sku,
             itm_articleid,
             extendedfield01,
+            sku_descr,
             SUM(qty_available) AS total_qty_available,
             MAX(tu_shelf_life) AS tu_shelf_life
           FROM inventory
-          GROUP BY sku, itm_articleid, extendedfield01;
+          GROUP BY sku, itm_articleid, extendedfield01, sku_descr;
   `);
 
-  // 库存匹配货品视图
   db.exec(`
-    CREATE VIEW IF NOT EXISTS inventory_to_goods_view AS
-    -- 从库存表出发匹配货品表(TU码匹配)
+    CREATE VIEW IF NOT EXISTS products_view AS
+    -- 优先级1: 从库存表出发匹配货品表(TU码匹配)
     SELECT
       i.sku,
       g.id,
@@ -181,16 +178,15 @@ function createTables() {
       g.net_weight,
       g.item_size,
       g.country_of_origin,
-      i.total_qty_available,
+      i.total_qty_available AS qty_available,
       i.tu_shelf_life,
-      g.updated_at,
-      1 AS match_priority
+      g.updated_at
     FROM inventory_aggregated_view i
     INNER JOIN goods g ON g.tu = i.sku
 
     UNION ALL
 
-    -- 从库存表出发匹配货品表(A码+产品名匹配)
+    -- 优先级2: 从库存表出发匹配货品表(A码+中文品名匹配,多个取第一个)
     SELECT
       i.sku,
       g.id,
@@ -205,27 +201,34 @@ function createTables() {
       g.net_weight,
       g.item_size,
       g.country_of_origin,
-      i.total_qty_available,
+      i.total_qty_available AS qty_available,
       i.tu_shelf_life,
-      g.updated_at,
-      2 AS match_priority
+      g.updated_at
     FROM inventory_aggregated_view i
-    INNER JOIN goods g ON g.article_code = i.itm_articleid
-                       AND (g.product_name_en = i.extendedfield01 OR g.product_name_cn = i.extendedfield01)
+    INNER JOIN (
+      SELECT 
+        article_code,
+        product_name_cn,
+        MIN(id) as id
+      FROM goods
+      GROUP BY article_code, product_name_cn
+    ) g_min ON g_min.article_code = i.itm_articleid 
+           AND g_min.product_name_cn = i.extendedfield01
+    INNER JOIN goods g ON g.id = g_min.id
     WHERE NOT EXISTS (
       SELECT 1 FROM goods g2 WHERE g2.tu = i.sku
     )
 
     UNION ALL
 
-    -- 库存表中找不到对应货品的记录
+    -- 优先级3: 库存表中找不到对应货品的记录
     SELECT
       i.sku,
       NULL AS id,
       '-' AS category,
-      '-' AS article_code,
+      i.itm_articleid AS article_code,
       i.sku AS tu,
-      '-' AS product_name_en,
+      i.sku_descr AS product_name_en,
       i.extendedfield01 AS product_name_cn,
       '-' AS declared_content,
       0 AS cn_current_price,
@@ -233,10 +236,9 @@ function createTables() {
       '-' AS net_weight,
       '-' AS item_size,
       '-' AS country_of_origin,
-      i.total_qty_available,
+      i.total_qty_available AS qty_available,
       i.tu_shelf_life,
-      NULL AS updated_at,
-      3 AS match_priority
+      NULL AS updated_at
     FROM inventory_aggregated_view i
     WHERE NOT EXISTS (
       SELECT 1 FROM goods g WHERE g.tu = i.sku
@@ -244,135 +246,8 @@ function createTables() {
     AND NOT EXISTS (
       SELECT 1 FROM goods g
       WHERE g.article_code = i.itm_articleid
-        AND (g.product_name_en = i.extendedfield01 OR g.product_name_cn = i.extendedfield01)
+        AND g.product_name_cn = i.extendedfield01
     );
-  `);
-
-  // 货品匹配库存视图
-  db.exec(`
-    CREATE VIEW IF NOT EXISTS goods_to_inventory_view AS
-    -- 从货品表出发匹配库存表(TU码匹配)
-    SELECT
-      g.tu AS sku,
-      g.id,
-      g.category,
-      g.article_code,
-      g.tu,
-      g.product_name_en,
-      g.product_name_cn,
-      g.declared_content,
-      g.cn_current_price,
-      g.shelf_life,
-      g.net_weight,
-      g.item_size,
-      g.country_of_origin,
-      i.total_qty_available,
-      i.tu_shelf_life,
-      g.updated_at,
-      1 AS match_priority
-    FROM goods g
-    LEFT JOIN inventory_aggregated_view i ON i.sku = g.tu
-
-    UNION ALL
-
-    -- 从货品表出发匹配库存表(A码+产品名匹配)
-    SELECT
-      g.tu AS sku,
-      g.id,
-      g.category,
-      g.article_code,
-      g.tu,
-      g.product_name_en,
-      g.product_name_cn,
-      g.declared_content,
-      g.cn_current_price,
-      g.shelf_life,
-      g.net_weight,
-      g.item_size,
-      g.country_of_origin,
-      i.total_qty_available,
-      i.tu_shelf_life,
-      g.updated_at,
-      2 AS match_priority
-    FROM goods g
-    LEFT JOIN inventory_aggregated_view i ON i.itm_articleid = g.article_code
-                                     AND (i.extendedfield01 = g.product_name_en OR i.extendedfield01 = g.product_name_cn)
-    WHERE NOT EXISTS (
-      SELECT 1 FROM inventory_aggregated_view i2 WHERE i2.sku = g.tu
-    )
-    AND EXISTS (
-      SELECT 1 FROM inventory_aggregated_view i3
-      WHERE i3.itm_articleid = g.article_code
-        AND (i3.extendedfield01 = g.product_name_en OR i3.extendedfield01 = g.product_name_cn)
-    )
-
-    UNION ALL
-
-    -- 货品表中找不到对应库存的记录(库存显示0)
-    SELECT
-      g.tu AS sku,
-      g.id,
-      g.category,
-      g.article_code,
-      g.tu,
-      g.product_name_en,
-      g.product_name_cn,
-      g.declared_content,
-      g.cn_current_price,
-      g.shelf_life,
-      g.net_weight,
-      g.item_size,
-      g.country_of_origin,
-      0 AS total_qty_available,
-      '-' AS tu_shelf_life,
-      g.updated_at,
-      3 AS match_priority
-    FROM goods g
-    WHERE NOT EXISTS (
-      SELECT 1 FROM inventory_aggregated_view i WHERE i.sku = g.tu
-    )
-    AND NOT EXISTS (
-      SELECT 1 FROM inventory_aggregated_view i
-      WHERE i.itm_articleid = g.article_code
-        AND (i.extendedfield01 = g.product_name_en OR i.extendedfield01 = g.product_name_cn)
-    );
-  `);
-
-  // 最终产品视图合并
-  db.exec(`
-    CREATE VIEW IF NOT EXISTS products_view AS
-    -- 合并库存匹配货品和货品匹配库存的结果
-    WITH all_matches AS (
-      SELECT * FROM inventory_to_goods_view
-      UNION ALL
-      SELECT * FROM goods_to_inventory_view
-    )
-    -- 对每个唯一的产品(通过id或sku),选择优先级最高的匹配
-    SELECT DISTINCT
-      id,
-      category,
-      article_code,
-      tu,
-      product_name_en,
-      product_name_cn,
-      declared_content,
-      cn_current_price,
-      shelf_life,
-      net_weight,
-      item_size,
-      country_of_origin,
-      total_qty_available AS qty_available,
-      tu_shelf_life,
-      updated_at
-    FROM (
-      SELECT *,
-        ROW_NUMBER() OVER (
-          PARTITION BY COALESCE(CAST(id AS TEXT), sku)
-          ORDER BY match_priority
-        ) AS rn
-      FROM all_matches
-    )
-    WHERE rn = 1;
   `);
 }
 
