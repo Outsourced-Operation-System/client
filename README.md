@@ -9,6 +9,11 @@
 [![Electron](https://img.shields.io/badge/Electron-39.2.6-47848F.svg)](https://www.electronjs.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.5.24-42b883.svg)](https://vuejs.org/)
 
+[![Version](https://img.shields.io/badge/version-0.0.3-blue.svg)](https://github.com)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![Electron](https://img.shields.io/badge/Electron-39.2.6-47848F.svg)](https://www.electronjs.org/)
+[![Vue](https://img.shields.io/badge/Vue-3.5.24-42b883.svg)](https://vuejs.org/)
+
 </div>
 
 ## 功能概览
@@ -37,7 +42,9 @@
 
 ## 项目结构
 
-```bash
+## 项目结构
+
+````bash
 .
 ├─ electron/                    # Electron 主进程代码
 │  ├── main.cjs                 # 应用主入口（简化后 50+ 行）
@@ -88,7 +95,9 @@
 
 ```bash
 npm install
-```
+````
+
+### 开发模式
 
 ### 开发模式
 
@@ -186,3 +195,7 @@ npm run electron:build
   - 视图 `products_view`：将 `goods` 与 `inventory` 按 TU/SKU 聚合，供前端商品搜索使用。
   - 表 `bundles` / `bundle_items`：存储生成的货组及其包含的商品信息。
 - 数据导入/导出及删除均通过 Electron IPC（在 `electron/main.cjs` 中实现）。
+
+```
+
+```
