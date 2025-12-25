@@ -303,8 +303,7 @@ function registerBundleHandlers() {
   ipcMain.handle("db:export-bundle", async (event, id) => {
     try {
       const { dialog } = require("electron");
-      const fs = require("fs");
-      const path = require("path");
+      const XLSX = require("xlsx");
       const db = getDatabase();
 
       // 获取货组信息
@@ -314,25 +313,59 @@ function registerBundleHandlers() {
         return { success: false, error: "货组不存在" };
       }
 
-      // 获取货组商品列表
-      const items = db
-        .prepare(`SELECT * FROM bundle_items WHERE bundle_id = ?`)
-        .all(id);
-
       // 弹出保存对话框
       const { filePath } = await dialog.showSaveDialog({
         title: "导出货组",
-        defaultPath: `货组_${bundle.virtual_code}_${bundle.name}.json`,
-        filters: [{ name: "JSON Files", extensions: ["json"] }],
+        defaultPath: `货组_${bundle.virtual_code}_${bundle.name}.xlsx`,
+        filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
       });
 
       if (!filePath) {
         return { success: false, error: "用户取消" };
       }
 
-      // 保存文件
-      const data = { bundle, items };
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+      // 准备导出数据 - 按表格显示的字段导出
+      const exportData = [
+        {
+          虚拟编码: bundle.virtual_code,
+          货组名称: bundle.name,
+          创建日期: bundle.created_at.split(" ")[0],
+          结束日期: bundle.end_date,
+          用途: bundle.usage_type === "cooperation" ? "合作" : "自营",
+          总货值: bundle.total_value,
+          主品货值: bundle.main_value,
+          赠品货值: bundle.gift_value,
+          分类: bundle.category,
+          品类: bundle.product_type,
+          "By-sku": bundle.by_sku,
+          香型: bundle.fragrance,
+          状态: bundle.status,
+        },
+      ];
+
+      // 创建工作簿
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+
+      // 设置列宽
+      ws["!cols"] = [
+        { wch: 15 }, // 虚拟编码
+        { wch: 20 }, // 货组名称
+        { wch: 12 }, // 创建日期
+        { wch: 12 }, // 结束日期
+        { wch: 8 }, // 用途
+        { wch: 12 }, // 总货值
+        { wch: 12 }, // 主品货值
+        { wch: 12 }, // 赠品货值
+        { wch: 12 }, // 分类
+        { wch: 12 }, // 品类
+        { wch: 12 }, // By-sku
+        { wch: 12 }, // 香型
+        { wch: 10 }, // 状态
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, "货组数据");
+      XLSX.writeFile(wb, filePath);
 
       return { success: true, filePath };
     } catch (error) {
@@ -345,22 +378,22 @@ function registerBundleHandlers() {
   ipcMain.handle("db:batch-export-bundles", async (event, ids) => {
     try {
       const { dialog } = require("electron");
-      const fs = require("fs");
-      const path = require("path");
+      const XLSX = require("xlsx");
       const db = getDatabase();
 
-      // 弹出文件夹选择对话框
-      const { filePaths } = await dialog.showOpenDialog({
-        title: "选择导出文件夹",
-        properties: ["openDirectory"],
+      // 弹出保存对话框
+      const { filePath } = await dialog.showSaveDialog({
+        title: "批量导出货组",
+        defaultPath: `货组批量导出_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`,
+        filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
       });
 
-      if (!filePaths || filePaths.length === 0) {
+      if (!filePath) {
         return { success: false, error: "用户取消" };
       }
 
-      const exportDir = filePaths[0];
-      const exportedFiles = [];
+      // 准备导出数据 - 每行对应一个虚拟编码
+      const exportData = [];
 
       for (const id of ids) {
         // 获取货组信息
@@ -368,23 +401,51 @@ function registerBundleHandlers() {
 
         if (!bundle) continue;
 
-        // 获取货组商品列表
-        const items = db
-          .prepare(`SELECT * FROM bundle_items WHERE bundle_id = ?`)
-          .all(id);
-
-        // 保存文件
-        const fileName = `货组_${bundle.virtual_code}_${bundle.name}.json`;
-        const filePath = path.join(exportDir, fileName);
-        const data = { bundle, items };
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
-        exportedFiles.push(fileName);
+        exportData.push({
+          虚拟编码: bundle.virtual_code,
+          货组名称: bundle.name,
+          创建日期: bundle.created_at.split(" ")[0],
+          结束日期: bundle.end_date,
+          用途: bundle.usage_type === "cooperation" ? "合作" : "自营",
+          总货值: bundle.total_value,
+          主品货值: bundle.main_value,
+          赠品货值: bundle.gift_value,
+          分类: bundle.category,
+          品类: bundle.product_type,
+          "By-sku": bundle.by_sku,
+          香型: bundle.fragrance,
+          状态: bundle.status,
+        });
       }
+
+      // 创建工作簿
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+
+      // 设置列宽
+      ws["!cols"] = [
+        { wch: 15 }, // 虚拟编码
+        { wch: 20 }, // 货组名称
+        { wch: 12 }, // 创建日期
+        { wch: 12 }, // 结束日期
+        { wch: 8 }, // 用途
+        { wch: 12 }, // 总货值
+        { wch: 12 }, // 主品货值
+        { wch: 12 }, // 赠品货值
+        { wch: 12 }, // 分类
+        { wch: 12 }, // 品类
+        { wch: 12 }, // By-sku
+        { wch: 12 }, // 香型
+        { wch: 10 }, // 状态
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, "货组数据");
+      XLSX.writeFile(wb, filePath);
 
       return {
         success: true,
-        count: exportedFiles.length,
-        files: exportedFiles,
+        count: exportData.length,
+        filePath,
       };
     } catch (error) {
       console.error("Batch export bundles error:", error);

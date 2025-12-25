@@ -2,13 +2,13 @@
     <div class="filter-area">
         <div class="filter-item">
             <span class="label">时间筛选：</span>
-            <el-date-picker :model-value="dateRange" @update:model-value="$emit('update:dateRange', $event)"
-                type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" size="large" />
+            <el-date-picker :model-value="dateRange" @update:model-value="handleDateChange" type="daterange"
+                range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" size="large" />
         </div>
         <div class="filter-item">
             <span class="label">关键词：</span>
-            <el-input :model-value="keyword" @update:model-value="$emit('update:keyword', $event)" placeholder="请输入关键词"
-                style="width: 200px" size="large" clearable />
+            <el-input :model-value="keyword" @update:model-value="$emit('update:keyword', $event)"
+                @keyup.enter="$emit('search')" placeholder="请输入关键词" style="width: 200px" size="large" clearable />
         </div>
         <div class="filter-actions">
             <el-button type="primary" :icon="Search" @click="$emit('search')" size="large">搜索</el-button>
@@ -25,12 +25,19 @@ defineProps<{
     keyword: string
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
     'update:dateRange': [value: any]
     'update:keyword': [value: string]
     'search': []
     'reset': []
 }>()
+
+const handleDateChange = (value: any) => {
+    emit('update:dateRange', value)
+    if (value) {
+        emit('search')
+    }
+}
 </script>
 
 <style scoped>
