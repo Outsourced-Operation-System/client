@@ -1,10 +1,6 @@
 import { ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 
-/**
- * 货组预览与保存 Composable
- * 负责预览面板的显示、货组信息管理和保存逻辑
- */
 export function useBundlePreview() {
   // 预览面板状态
   const isPreviewVisible = ref(false);
@@ -24,19 +20,31 @@ export function useBundlePreview() {
 
   /**
    * 生成虚拟编码
+   * @param bundleItems 货组商品列表，用于判断是否使用主品SKU码
    */
-  const generateVirtualCode = async () => {
+  const generateVirtualCode = async (bundleItems: any[] = []) => {
     try {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const day = String(now.getDate()).padStart(2, "0");
+      // 筛选主品
+      const mainItems = bundleItems.filter((item) => item.type === "main");
 
-      // 获取今天已有的货组数量
-      const res = await (window as any).electronAPI.getTodayBundleCount();
-      const sequence = String((res.count || 0) + 1).padStart(4, "0");
+      let code = "";
 
-      let code = `BD${year}${month}${day}${sequence}`;
+      // 如果只有一个主品，直接使用主品的SKU码
+      if (mainItems.length === 1) {
+        code = mainItems[0].article_code;
+      } else {
+        // 如果主品数量多于1个或没有主品，使用现有的编码规则
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+
+        // 获取今天已有的货组数量
+        const res = await (window as any).electronAPI.getTodayBundleCount();
+        const sequence = String((res.count || 0) + 1).padStart(4, "0");
+
+        code = `BD${year}${month}${day}${sequence}`;
+      }
 
       // 如果有礼盒，添加前缀
       if (hasGiftBox.value) {
@@ -60,9 +68,7 @@ export function useBundlePreview() {
     }
   };
 
-  /**
-   * 监听礼盒选项变化，自动更新虚拟编码
-   */
+  // 自动更新虚拟编码
   watch(hasGiftBox, async () => {
     if (virtualCode.value) {
       const baseCode = virtualCode.value.replace("Gbox_", "");
@@ -72,17 +78,28 @@ export function useBundlePreview() {
 
   /**
    * 显示预览并准备保存
+   * @param bundleItems 货组商品列表，用于生成虚拟编码
    */
-  const showPreviewAndSave = async () => {
+  const showPreviewAndSave = async (bundleItems: any[] = []) => {
     // 生成创建时间和虚拟编码
     const now = new Date();
     createTime.value = `${now.getFullYear()}/${String(
       now.getMonth() + 1
     ).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")}`;
-    virtualCode.value = await generateVirtualCode();
+    virtualCode.value = await generateVirtualCode(bundleItems);
     if (!hasGenerated.value) ElMessage.success("请在右侧填写货组信息并保存");
     isPreviewVisible.value = true;
     hasGenerated.value = true;
+  };
+
+  /**
+   * 更新虚拟编码
+   * @param bundleItems 货组商品列表，用于重新生成虚拟编码
+   */
+  const updateVirtualCode = async (bundleItems: any[] = []) => {
+    if (isPreviewVisible.value) {
+      virtualCode.value = await generateVirtualCode(bundleItems);
+    }
   };
 
   /**
@@ -207,5 +224,6 @@ export function useBundlePreview() {
     saveBundle,
     resetPreview,
     generateVirtualCode,
+    updateVirtualCode,
   };
 }

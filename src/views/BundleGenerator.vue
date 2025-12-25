@@ -58,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import SearchSection from '@/components/BundleGenerator/SearchSection.vue'
 import BundleTable from '@/components/BundleGenerator/BundleTable.vue'
@@ -81,6 +81,15 @@ const labels = useLabelSearch()
 const preview = useBundlePreview()
 const stock = useArticleStock()
 const draft = useBundleDraft()
+
+// 监听货品列表变化，实时更新虚拟编码
+watch(
+    () => items.bundleItems.value,
+    (newItems) => {
+        preview.updateVirtualCode(newItems)
+    },
+    { deep: true }
+)
 
 // 本地状态
 const showConfirmClearDialog = ref(false)
@@ -127,7 +136,7 @@ const handleConfirmClear = () => {
 
 //生成货组（显示预览面板）
 const handleGenerate = () => {
-    preview.showPreviewAndSave()
+    preview.showPreviewAndSave(items.bundleItems.value)
 }
 
 //保存货组
