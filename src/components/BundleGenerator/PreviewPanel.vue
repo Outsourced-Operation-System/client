@@ -129,7 +129,8 @@
                     </table>
                 </div>
                 <div style="padding: 15px 0; border-top: 1px solid #eee;">
-                    <el-button type="primary" class="w-100" @click="$emit('save')" size="large">保存货组</el-button>
+                    <el-button type="primary" class="w-100" @click="$emit('save')" size="large"
+                        :disabled="!bundleName || !selectedCategory || !selectedProductType || !selectedBySku || !selectedFragrance || !endDate">保存货组</el-button>
                 </div>
             </div>
         </el-card>

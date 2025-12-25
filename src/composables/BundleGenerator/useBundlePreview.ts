@@ -38,9 +38,9 @@ export function useBundlePreview() {
 
       let code = `BD${year}${month}${day}${sequence}`;
 
-      // 如果有礼盒，添加后缀
+      // 如果有礼盒，添加前缀
       if (hasGiftBox.value) {
-        code = code + "Gbox_";
+        code = "Gbox_" + code;
       }
 
       return code;
@@ -54,7 +54,7 @@ export function useBundlePreview() {
       const timestamp = String(now.getTime()).slice(-4);
       let code = `BD${year}${month}${day}${timestamp}`;
       if (hasGiftBox.value) {
-        code = code + "Gbox_";
+        code = "Gbox_" + code;
       }
       return code;
     }
@@ -66,7 +66,7 @@ export function useBundlePreview() {
   watch(hasGiftBox, async () => {
     if (virtualCode.value) {
       const baseCode = virtualCode.value.replace("Gbox_", "");
-      virtualCode.value = hasGiftBox.value ? `${baseCode}Gbox_` : baseCode;
+      virtualCode.value = hasGiftBox.value ? `Gbox_${baseCode}` : baseCode;
     }
   });
 
@@ -80,7 +80,7 @@ export function useBundlePreview() {
       now.getMonth() + 1
     ).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")}`;
     virtualCode.value = await generateVirtualCode();
-    ElMessage.success("请在右侧填写货组信息并保存");
+    if (!hasGenerated.value) ElMessage.success("请在右侧填写货组信息并保存");
     isPreviewVisible.value = true;
     hasGenerated.value = true;
   };
@@ -140,8 +140,6 @@ export function useBundlePreview() {
     const bundleData = {
       name: bundleName.value,
       virtualCode: virtualCode.value,
-      createTime: createTime.value,
-      startDate: createTime.value,
       endDate: endDate.value,
       items: JSON.parse(JSON.stringify(bundleItems)),
       mainValue: parseFloat(mainValue),
@@ -152,7 +150,6 @@ export function useBundlePreview() {
       bySku: selectedBySku.value,
       fragrance: selectedFragrance.value,
       usageType: usageType.value,
-      hasGiftBox: hasGiftBox.value,
     };
 
     try {

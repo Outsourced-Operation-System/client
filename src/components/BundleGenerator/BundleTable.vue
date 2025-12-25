@@ -43,7 +43,7 @@
                 <el-table-column prop="declared_content" label="规格" width="100" align="center" />
                 <el-table-column prop="cn_current_price" label="货值" width="100" align="right">
                     <template #default="scope">
-                        ¥{{ scope.row.cn_current_price || '-' }}
+                        ¥{{ scope.row.cn_current_price || 0 }}
                     </template>
                 </el-table-column>
                 <el-table-column prop="shelf_life" label="保质期" width="100" align="center">
@@ -60,10 +60,15 @@
             </el-table>
         </div>
         <div class="bundle-actions" style="display: flex; justify-content: flex-end;">
-            <el-button type="danger" @click="$emit('clear')" size="large" style="width: 200px;">清除全部</el-button>
+            <el-button type="danger" @click="$emit('clear')" size="large" style="width: 200px;"
+                :disabled="bundleItems.length === 0 && !hasGenerated">清除全部</el-button>
             <el-button type="primary" @click="$emit('generate')" size="large" v-if="!hasGenerated"
                 style="width: 200px;">
                 新建货组
+            </el-button>
+            <el-button type="primary" @click="$emit('generate')" size="large" v-if="hasGenerated && !isPreviewVisible"
+                style="width: 200px;">
+                信息预览
             </el-button>
         </div>
     </el-card>

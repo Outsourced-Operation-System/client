@@ -109,30 +109,42 @@ function createTables() {
     );
   `);
 
-  // Bundles 表
+  // Bundles 表 - 货组主表
   db.exec(`
     CREATE TABLE IF NOT EXISTS bundles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       virtual_code TEXT UNIQUE,
       name TEXT,
-      start_date TEXT,
+      created_at TEXT,
       end_date TEXT,
+      usage_type TEXT,
       total_value REAL,
-      status TEXT,
-      created_at TEXT
+      main_value REAL,
+      gift_value REAL,
+      category TEXT,
+      product_type TEXT,
+      by_sku TEXT,
+      fragrance TEXT,
+      status TEXT DEFAULT '有效'
     );
   `);
 
-  // Bundle Items 表
+  // Bundle Items 表 - 货组明细表（直接存储商品信息，无外键约束）
   db.exec(`
     CREATE TABLE IF NOT EXISTS bundle_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       bundle_id INTEGER,
-      product_id INTEGER,
+      sku TEXT,
+      article_code TEXT,
+      tu TEXT,
+      product_name_cn TEXT,
+      product_name_en TEXT,
+      cn_current_price REAL,
+      qty_available INTEGER,
+      tu_shelf_life TEXT,
+      declared_content TEXT,
       type TEXT,
-      quantity INTEGER,
-      FOREIGN KEY(bundle_id) REFERENCES bundles(id),
-      FOREIGN KEY(product_id) REFERENCES goods(id)
+      quantity INTEGER DEFAULT 1
     );
   `);
 
@@ -182,7 +194,7 @@ function createTables() {
       i.tu_shelf_life,
       g.updated_at
     FROM inventory_aggregated_view i
-    INNER JOIN goods g ON g.tu = i.sku
+    INNER JOIN goods g ON TRIM(g.tu) = TRIM(i.sku)
 
     UNION ALL
 

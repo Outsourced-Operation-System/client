@@ -38,7 +38,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
   createBundle: (bundleData) =>
     ipcRenderer.invoke("db:create-bundle", bundleData),
   getBundles: (filters) => ipcRenderer.invoke("db:get-bundles", filters),
+  getBundleDetail: (id) => ipcRenderer.invoke("db:get-bundle-detail", id),
   deleteBundle: (id) => ipcRenderer.invoke("db:delete-bundle", id),
+  batchDeleteBundles: (ids) =>
+    ipcRenderer.invoke("db:batch-delete-bundles", ids),
+  exportBundle: (id) => ipcRenderer.invoke("db:export-bundle", id),
+  batchExportBundles: (ids) =>
+    ipcRenderer.invoke("db:batch-export-bundles", ids),
+  updateBundleStatus: (id, status) =>
+    ipcRenderer.invoke("db:update-bundle-status", id, status),
+  updateBundle: (bundleData) =>
+    ipcRenderer.invoke("db:update-bundle", bundleData),
   getStats: () => ipcRenderer.invoke("db:get-stats"),
   exportBundles: () => ipcRenderer.invoke("db:export-bundles"),
   exportProducts: () => ipcRenderer.invoke("db:export-products"),
