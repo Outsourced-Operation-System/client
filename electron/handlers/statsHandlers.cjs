@@ -1,9 +1,6 @@
 const { ipcMain } = require("electron");
 const { getDatabase } = require("../database/index.cjs");
 
-/**
- * 注册统计信息相关的 IPC handlers
- */
 function registerStatsHandlers() {
   // 获取统计信息
   ipcMain.handle("db:get-stats", async () => {
@@ -20,7 +17,7 @@ function registerStatsHandlers() {
 
       // 获取货品表的最后更新时间
       const goodsTimeRes = db
-        .prepare("SELECT MAX(updated_at) as lastUpdate FROM goods")
+        .prepare("SELECT MAX(updated_at) as lastUpdate FROM products")
         .get();
       const goodsLastUpdate = goodsTimeRes ? goodsTimeRes.lastUpdate : null;
 

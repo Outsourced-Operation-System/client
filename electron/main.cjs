@@ -5,9 +5,7 @@ const { registerAllHandlers } = require("./handlers/index.cjs");
 
 const NODE_ENV = process.env.NODE_ENV;
 
-/**
- * 创建主窗口
- */
+// 主窗口
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
@@ -28,9 +26,7 @@ function createWindow() {
   }
 }
 
-/**
- * 应用启动
- */
+// 应用启动
 app.whenReady().then(() => {
   // 初始化数据库
   initDatabase();
@@ -48,9 +44,7 @@ app.whenReady().then(() => {
   });
 });
 
-/**
- * 窗口关闭处理
- */
+// 窗口关闭
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();

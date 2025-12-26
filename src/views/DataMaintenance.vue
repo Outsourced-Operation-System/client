@@ -9,8 +9,8 @@
 
             <!-- 数据状态与备份区域 -->
             <el-col :span="12" class="right-column">
-                <DataStatusCard :stats="stats" @export-goods="handleExportGoods"
-                    @export-inventory="handleExportInventory" @clear-goods="confirmClearGoods"
+                <DataStatusCard :stats="stats" @export-products="handleExportProducts"
+                    @export-inventory="handleExportInventory" @clear-products="confirmClearProducts"
                     @clear-inventory="confirmClearInventory" />
 
                 <BackupCard :last-backup-time="stats.lastBackupTime" @backup="confirmBackup"
@@ -30,11 +30,11 @@
             ]" @confirm="handleUploadWithMode('overwrite')" />
 
         <!-- 清空货品数据确认对话框 -->
-        <ConfirmDialog v-model="clearGoodsConfirmVisible" title="确认删除货品数据" dialog-type="warning" confirm-text="确认删除"
+        <ConfirmDialog v-model="clearProductsConfirmVisible" title="确认删除货品数据" dialog-type="warning" confirm-text="确认删除"
             confirm-type="danger" :messages="[
                 { text: '警告：该操作会永久删除数据库中所有的货品数据！' },
                 { text: '此操作不可撤销，请确认是否继续？' }
-            ]" @confirm="handleClearGoods" />
+            ]" @confirm="handleClearProducts" />
 
         <!-- 清空库存数据确认对话框 -->
         <ConfirmDialog v-model="clearInventoryConfirmVisible" title="确认删除库存数据" dialog-type="warning" confirm-text="确认删除"
@@ -106,14 +106,14 @@ const {
 } = useDataUpload(fetchStats)
 
 // 使用数据导出
-const { handleExportGoods, handleExportInventory } = useDataExport()
+const { handleExportProducts, handleExportInventory } = useDataExport()
 
 // 使用数据清除
 const {
-    clearGoodsConfirmVisible,
+    clearProductsConfirmVisible,
     clearInventoryConfirmVisible,
-    confirmClearGoods,
-    handleClearGoods,
+    confirmClearProducts,
+    handleClearProducts,
     confirmClearInventory,
     handleClearInventory
 } = useDataClear(fetchStats)

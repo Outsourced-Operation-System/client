@@ -24,13 +24,13 @@
             </div>
             <div class="actions mt-20">
                 <div class="button-row">
-                    <el-button type="primary" :icon="Download" @click="emit('exportGoods')" size="large"
+                    <el-button type="primary" :icon="Download" @click="emit('exportProducts')" size="large"
                         class="action-button">导出货品表</el-button>
                     <el-button type="primary" :icon="Download" @click="emit('exportInventory')" size="large"
                         class="action-button">导出库存表</el-button>
                 </div>
                 <div class="button-row">
-                    <el-button type="danger" @click="emit('clearGoods')" size="large"
+                    <el-button type="danger" @click="emit('clearProducts')" size="large"
                         class="action-button">删除货品数据</el-button>
                     <el-button type="danger" @click="emit('clearInventory')" size="large"
                         class="action-button">删除库存数据</el-button>
@@ -49,9 +49,9 @@ interface Props {
 }
 
 interface Emits {
-    (e: 'exportGoods'): void
+    (e: 'exportProducts'): void
     (e: 'exportInventory'): void
-    (e: 'clearGoods'): void
+    (e: 'clearProducts'): void
     (e: 'clearInventory'): void
 }
 

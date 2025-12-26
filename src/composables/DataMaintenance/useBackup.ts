@@ -1,6 +1,11 @@
 import { ref } from "vue";
 import { ElMessage } from "element-plus";
 
+/**
+ * 数据备份 Composable
+ * 负责数据备份、恢复和备份列表管理
+ */
+
 export interface BackupItem {
   filename: string;
   timestamp: number;
@@ -14,11 +19,11 @@ export function useBackup(onBackupSuccess: () => void) {
   const deleteBackupConfirmVisible = ref(false);
   const backupList = ref<BackupItem[]>([]);
   const selectedBackup = ref<BackupItem | null>(null);
-
+  // 确认备份
   const confirmBackup = () => {
     backupConfirmVisible.value = true;
   };
-
+  // 执行备份
   const handleBackup = async () => {
     backupConfirmVisible.value = false;
     try {
@@ -34,7 +39,7 @@ export function useBackup(onBackupSuccess: () => void) {
       ElMessage.error("备份出错: " + (e?.message || String(e)));
     }
   };
-
+  // 显示备份列表
   const showBackupList = async () => {
     try {
       const res = await (window as any).electronAPI.getBackups();
@@ -49,12 +54,12 @@ export function useBackup(onBackupSuccess: () => void) {
       ElMessage.error("获取备份列表出错: " + (e?.message || String(e)));
     }
   };
-
+  // 确认恢复备份
   const confirmRestore = (backup: BackupItem) => {
     selectedBackup.value = backup;
     restoreConfirmVisible.value = true;
   };
-
+  // 执行恢复备份
   const handleRestore = async () => {
     restoreConfirmVisible.value = false;
     if (!selectedBackup.value) return;
@@ -81,12 +86,12 @@ export function useBackup(onBackupSuccess: () => void) {
       selectedBackup.value = null;
     }
   };
-
+  // 确认删除备份
   const confirmDeleteBackup = (backup: BackupItem) => {
     selectedBackup.value = backup;
     deleteBackupConfirmVisible.value = true;
   };
-
+  // 执行删除备份
   const handleDeleteBackup = async () => {
     deleteBackupConfirmVisible.value = false;
     if (!selectedBackup.value) return;

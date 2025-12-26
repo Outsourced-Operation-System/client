@@ -2,6 +2,11 @@ import { ref, computed } from "vue";
 import { ElMessage } from "element-plus";
 import type { BundleFilters } from "./useBundleFilter";
 
+/**
+ * 货组列表管理 Composable
+ * 负责货组列表的获取、分页和选择管理
+ */
+
 export interface BundleRecord {
   id: number;
   virtual_code: string;
@@ -25,6 +30,7 @@ export function useBundleList() {
   const pageSize = ref(10);
   const total = ref(0);
 
+  // 获取货组列表
   const fetchBundles = async (filters?: BundleFilters) => {
     loading.value = true;
     try {
@@ -53,15 +59,14 @@ export function useBundleList() {
       loading.value = false;
     }
   };
-
+  // 分页变化处理
   const handlePageChange = (page: number) => {
     currentPage.value = page;
   };
-
+  // 选择变化处理
   const handleSelectionChange = (selection: BundleRecord[]) => {
     selectedBundles.value = selection;
   };
-
   const hasSelection = computed(() => selectedBundles.value.length > 0);
 
   return {

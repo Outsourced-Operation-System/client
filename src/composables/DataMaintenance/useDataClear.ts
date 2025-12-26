@@ -1,18 +1,21 @@
 import { ref } from "vue";
 import { ElMessage } from "element-plus";
-
+/**
+ * 数据清理 Composable
+ * 负责货品数据和库存数据的清理
+ */
 export function useDataClear(onClearSuccess: () => void) {
-  const clearGoodsConfirmVisible = ref(false);
+  const clearProductsConfirmVisible = ref(false);
   const clearInventoryConfirmVisible = ref(false);
 
-  const confirmClearGoods = () => {
-    clearGoodsConfirmVisible.value = true;
+  const confirmClearProducts = () => {
+    clearProductsConfirmVisible.value = true;
   };
-
-  const handleClearGoods = async () => {
-    clearGoodsConfirmVisible.value = false;
+  // 执行删除货品数据
+  const handleClearProducts = async () => {
+    clearProductsConfirmVisible.value = false;
     try {
-      const res = await (window as any).electronAPI.clearGoods();
+      const res = await (window as any).electronAPI.clearProducts();
       if (res.success) {
         ElMessage.success("货品数据已成功删除");
         onClearSuccess();
@@ -24,11 +27,11 @@ export function useDataClear(onClearSuccess: () => void) {
       ElMessage.error("删除货品数据出错: " + (e?.message || String(e)));
     }
   };
-
+  // 执行删除库存数据
   const confirmClearInventory = () => {
     clearInventoryConfirmVisible.value = true;
   };
-
+  // 执行删除库存数据
   const handleClearInventory = async () => {
     clearInventoryConfirmVisible.value = false;
     try {
@@ -46,10 +49,10 @@ export function useDataClear(onClearSuccess: () => void) {
   };
 
   return {
-    clearGoodsConfirmVisible,
+    clearProductsConfirmVisible,
     clearInventoryConfirmVisible,
-    confirmClearGoods,
-    handleClearGoods,
+    confirmClearProducts,
+    handleClearProducts,
     confirmClearInventory,
     handleClearInventory,
   };

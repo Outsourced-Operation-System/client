@@ -52,9 +52,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getStats: () => ipcRenderer.invoke("db:get-stats"),
   exportBundles: () => ipcRenderer.invoke("db:export-bundles"),
   exportProducts: () => ipcRenderer.invoke("db:export-products"),
-  exportGoods: () => ipcRenderer.invoke("db:export-goods"),
   exportInventory: () => ipcRenderer.invoke("db:export-inventory"),
-  clearGoods: () => ipcRenderer.invoke("db:clear-goods"),
+  clearProducts: () => ipcRenderer.invoke("db:clear-products"),
   clearInventory: () => ipcRenderer.invoke("db:clear-inventory"),
   // 备份相关
   backupDatabase: () => ipcRenderer.invoke("db:backup-database"),

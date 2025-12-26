@@ -18,10 +18,7 @@ export function useBundlePreview() {
   const usageType = ref("cooperation");
   const hasGiftBox = ref(false);
 
-  /**
-   * 生成虚拟编码
-   * @param bundleItems 货组商品列表，用于判断是否使用主品SKU码
-   */
+  // 生成虚拟编码
   const generateVirtualCode = async (bundleItems: any[] = []) => {
     try {
       // 筛选主品
@@ -76,10 +73,7 @@ export function useBundlePreview() {
     }
   });
 
-  /**
-   * 显示预览并准备保存
-   * @param bundleItems 货组商品列表，用于生成虚拟编码
-   */
+  // 显示预览并生成虚拟编码
   const showPreviewAndSave = async (bundleItems: any[] = []) => {
     // 生成创建时间和虚拟编码
     const now = new Date();
@@ -92,26 +86,19 @@ export function useBundlePreview() {
     hasGenerated.value = true;
   };
 
-  /**
-   * 更新虚拟编码
-   * @param bundleItems 货组商品列表，用于重新生成虚拟编码
-   */
+  // 更新虚拟编码
   const updateVirtualCode = async (bundleItems: any[] = []) => {
     if (isPreviewVisible.value) {
       virtualCode.value = await generateVirtualCode(bundleItems);
     }
   };
 
-  /**
-   * 切换预览面板
-   */
+  // 切换预览面板显示状态
   const togglePreview = () => {
     isPreviewVisible.value = !isPreviewVisible.value;
   };
 
-  /**
-   * 保存货组
-   */
+  // 保存货组
   const saveBundle = async (
     bundleItems: any[],
     mainValue: string,
@@ -185,9 +172,6 @@ export function useBundlePreview() {
     }
   };
 
-  /**
-   * 重置所有预览信息
-   */
   const resetPreview = () => {
     bundleName.value = "";
     endDate.value = "";
@@ -204,7 +188,6 @@ export function useBundlePreview() {
   };
 
   return {
-    // 状态
     isPreviewVisible,
     hasGenerated,
     bundleName,
@@ -218,7 +201,6 @@ export function useBundlePreview() {
     usageType,
     hasGiftBox,
 
-    // 方法
     showPreviewAndSave,
     togglePreview,
     saveBundle,

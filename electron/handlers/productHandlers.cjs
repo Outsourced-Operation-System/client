@@ -1,9 +1,6 @@
 const { ipcMain } = require("electron");
 const { getDatabase } = require("../database/index.cjs");
 
-/**
- * 注册产品相关的 IPC handlers
- */
 function registerProductHandlers() {
   // 搜索产品（分页）
   ipcMain.handle(
@@ -20,8 +17,8 @@ function registerProductHandlers() {
     ) => {
       try {
         const db = getDatabase();
-        let sql = "SELECT * FROM products_view WHERE 1=1";
-        let countSql = "SELECT COUNT(*) as total FROM products_view WHERE 1=1";
+        let sql = "SELECT * FROM goods WHERE 1=1";
+        let countSql = "SELECT COUNT(*) as total FROM goods WHERE 1=1";
         const params = [];
 
         if (query) {
@@ -81,7 +78,7 @@ function registerProductHandlers() {
 
       const sql = `
         SELECT DISTINCT product_name_cn, article_code, tu
-        FROM products_view
+        FROM goods
         WHERE product_name_cn LIKE ?
         LIMIT 10
       `;
@@ -161,7 +158,7 @@ function registerProductHandlers() {
           net_weight,
           item_size,
           country_of_origin
-        FROM products_view
+        FROM goods
         WHERE (${conditions.join(" OR ")})
       `;
 

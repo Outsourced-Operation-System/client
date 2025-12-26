@@ -1,13 +1,14 @@
 const { ipcMain, dialog, app } = require("electron");
-const { getDatabase, getDatabasePath } = require("../database/index.cjs");
+const {
+  getDatabase,
+  getDatabasePath,
+  refreshGoodsTable,
+} = require("../database/index.cjs");
 const xlsx = require("xlsx");
 const dayjs = require("dayjs");
 const fs = require("fs");
 const path = require("path");
 
-/**
- * 注册数据导入导出相关的 IPC handlers
- */
 function registerDataHandlers() {
   // 导入数据
   ipcMain.handle("db:import-data", async (event, type, filePath, mode) => {
@@ -26,12 +27,12 @@ function registerDataHandlers() {
             // 先删除所有引用货品表的 bundle_items 记录
             db.prepare("DELETE FROM bundle_items").run();
             // 再删除货品表数据
-            db.prepare("DELETE FROM goods").run();
+            db.prepare("DELETE FROM products").run();
           }
 
           // 货品表字段映射 - 包含所有字段
           const stmt = db.prepare(`
-            INSERT INTO goods (
+            INSERT INTO products (
               change, launch_status, launch_month, delisting_month, category,
               article_code, tu, product_name_en, product_name_cn, cn_registration,
               declared_content, cn_current_price, ean_code, collation, shelf_life,
@@ -128,11 +129,6 @@ function registerDataHandlers() {
             }
 
             // 按列插入数据
-            // 第0列: 分类(category)
-            // 第1列: 品类(product_type)
-            // 第2列: 品类 By-sku(by_sku)
-            // 第3列: 香型(fragrance)
-
             // 第0列 - 分类
             if (columnData[0]) {
               columnData[0].forEach((value) => {
@@ -226,6 +222,12 @@ function registerDataHandlers() {
       });
 
       transaction(type, mode, data, now);
+
+      // 导入货品或库存数据后，刷新 goods 表
+      if (type === "product" || type === "inventory") {
+        refreshGoodsTable();
+      }
+
       return { success: true, count: data.length };
     } catch (error) {
       console.error("========== Import Error ==========");
@@ -239,58 +241,11 @@ function registerDataHandlers() {
     }
   });
 
-  // 导出产品视图
+  // 导出货品表
   ipcMain.handle("db:export-products", async () => {
     try {
       const db = getDatabase();
-      const stmt = db.prepare(
-        "SELECT * FROM products_view ORDER BY category, article_code"
-      );
-      const rows = stmt.all();
-      const results = rows.map((row) => ({
-        Category: row.category,
-        "Article Code": row.article_code,
-        TU: row.tu,
-        "Product Name (EN)": row.product_name_en,
-        "Product Name (CN)": row.product_name_cn,
-        "Declared Content": row.declared_content,
-        "CN Current Price": row.cn_current_price,
-        "Shelf Life": row.shelf_life,
-        "Net Weight Product (kg)": row.net_weight,
-        "Item Size L x W x H (mm)": row.item_size,
-        "Country of Origin": row.country_of_origin,
-        "Qty Available": row.qty_available || 0,
-      }));
-
-      const ws = xlsx.utils.json_to_sheet(results);
-      const wb = xlsx.utils.book_new();
-      xlsx.utils.book_append_sheet(wb, ws, "Products");
-
-      const { filePath } = await dialog.showSaveDialog({
-        title: "导出商品数据",
-        defaultPath: `products_view_export_${dayjs().format(
-          "YYYYMMDD_HHmmss"
-        )}.xlsx`,
-        filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
-      });
-
-      if (filePath) {
-        xlsx.writeFile(wb, filePath);
-        return { success: true, filePath, count: results.length };
-      } else {
-        return { success: false, error: "用户取消了保存" };
-      }
-    } catch (error) {
-      console.error("Export products error:", error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  // 导出货品表
-  ipcMain.handle("db:export-goods", async () => {
-    try {
-      const db = getDatabase();
-      const stmt = db.prepare("SELECT * FROM goods");
+      const stmt = db.prepare("SELECT * FROM products");
       const rows = stmt.all();
       const results = rows.map((row) => ({
         Change: row.change,
@@ -317,11 +272,13 @@ function registerDataHandlers() {
 
       const ws = xlsx.utils.json_to_sheet(results);
       const wb = xlsx.utils.book_new();
-      xlsx.utils.book_append_sheet(wb, ws, "Goods");
+      xlsx.utils.book_append_sheet(wb, ws, "Products");
 
       const { filePath } = await dialog.showSaveDialog({
         title: "导出货品表",
-        defaultPath: `goods_export_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`,
+        defaultPath: `products_export_${dayjs().format(
+          "YYYYMMDD_HHmmss"
+        )}.xlsx`,
         filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
       });
 
@@ -332,7 +289,7 @@ function registerDataHandlers() {
         return { success: false, error: "用户取消了保存" };
       }
     } catch (error) {
-      console.error("Export goods error:", error);
+      console.error("Export products error:", error);
       return { success: false, error: error.message };
     }
   });
@@ -408,15 +365,17 @@ function registerDataHandlers() {
   });
 
   // 清空货品表
-  ipcMain.handle("db:clear-goods", async () => {
+  ipcMain.handle("db:clear-products", async () => {
     try {
       const db = getDatabase();
       // 先删除所有引用货品表的 bundle_items 记录，再删除货品表数据
       db.prepare("DELETE FROM bundle_items").run();
-      db.prepare("DELETE FROM goods").run();
+      db.prepare("DELETE FROM products").run();
+      // 刷新 goods 表
+      refreshGoodsTable();
       return { success: true };
     } catch (error) {
-      console.error("Clear goods error:", error);
+      console.error("Clear products error:", error);
       return { success: false, error: error.message };
     }
   });
@@ -426,6 +385,8 @@ function registerDataHandlers() {
     try {
       const db = getDatabase();
       db.prepare("DELETE FROM inventory").run();
+      // 刷新 goods 表
+      refreshGoodsTable();
       return { success: true };
     } catch (error) {
       console.error("Clear inventory error:", error);

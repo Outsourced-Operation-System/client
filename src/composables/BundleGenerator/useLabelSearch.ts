@@ -5,24 +5,18 @@ import { ref } from "vue";
  * 负责分类、品类、By-SKU、香型等标签的远程搜索
  */
 export function useLabelSearch() {
-  // 标签数据
   const categories = ref<string[]>([]);
   const productTypes = ref<string[]>([]);
   const bySkuList = ref<string[]>([]);
   const fragrances = ref<string[]>([]);
-
-  // 加载状态
   const categoryLoading = ref(false);
   const productTypeLoading = ref(false);
   const bySkuLoading = ref(false);
   const fragranceLoading = ref(false);
 
-  /**
-   * 搜索标签（远程搜索）- 输入框变动时立即搜索
-   */
+  // 搜索标签
   const searchLabels = async (field: string, query: string) => {
     try {
-      // 设置加载状态
       switch (field) {
         case "category":
           categoryLoading.value = true;
@@ -74,19 +68,14 @@ export function useLabelSearch() {
   };
 
   return {
-    // 标签数据
     categories,
     productTypes,
     bySkuList,
     fragrances,
-
-    // 加载状态
     categoryLoading,
     productTypeLoading,
     bySkuLoading,
     fragranceLoading,
-
-    // 方法
     searchLabels,
   };
 }

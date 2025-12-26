@@ -18,9 +18,7 @@ export function useProductSearch() {
   const dialogSelectedItems = ref<any[]>([]);
   const searchDialogTable = ref<any>(null);
 
-  /**
-   * 自动完成搜索建议
-   */
+  // 自动补全查询
   const querySearch = async (queryString: string, cb: any) => {
     if (
       !queryString ||
@@ -45,25 +43,16 @@ export function useProductSearch() {
       cb([]);
     }
   };
-
-  /**
-   * 选中搜索建议
-   */
+  // 选择自动补全项
   const handleSelect = (item: any, onSearch: () => void) => {
     searchQuery.value = item.value;
     onSearch();
   };
-
-  /**
-   * 监听搜索词变化，清除"已使用建议"标志
-   */
+  // 监听搜索查询变化，重置 suggestionUsed 状态
   watch(searchQuery, () => {
     suggestionUsed.value = false;
   });
-
-  /**
-   * 快速搜索（打开关键信息列表弹窗）
-   */
+  // 快速搜索
   const handleQuickSearch = async () => {
     if (!searchQuery.value.trim()) {
       ElMessage.warning("请输入搜索内容");
@@ -106,24 +95,17 @@ export function useProductSearch() {
     }
   };
 
-  /**
-   * 关键信息列表选择
-   */
+  // 处理弹窗中选择变化
   const handleDialogSelectionChange = (val: any[]) => {
     dialogSelectedItems.value = val;
   };
-
-  /**
-   * 点击行时切换选中状态
-   */
+  // 处理表格行点击，切换选择状态
   const handleRowClick = (row: any) => {
     if (!searchDialogTable.value) return;
     searchDialogTable.value.toggleRowSelection(row);
   };
 
-  /**
-   * 获取选中的商品并关闭弹窗
-   */
+  // 获取已选择的商品
   const getSelectedItems = () => {
     if (dialogSelectedItems.value.length === 0) {
       ElMessage.warning("请至少选择一个商品");
@@ -136,28 +118,23 @@ export function useProductSearch() {
     return items;
   };
 
-  /**
-   * 关闭搜索弹窗
-   */
+  // 关闭搜索结果弹窗
   const closeSearchDialog = () => {
     showSearchResultDialog.value = false;
     dialogSelectedItems.value = [];
   };
 
   return {
-    // 搜索状态
     searchQuery,
     searchType,
     filterZeroStock,
     suggestionUsed,
 
-    // 弹窗状态
     showSearchResultDialog,
     searchDialogResults,
     dialogSelectedItems,
     searchDialogTable,
 
-    // 方法
     querySearch,
     handleSelect,
     handleQuickSearch,

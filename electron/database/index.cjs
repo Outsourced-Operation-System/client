@@ -5,9 +5,6 @@ const { app } = require("electron");
 let db = null;
 let dbPath = null;
 
-/**
- * 获取数据库路径
- */
 function getDatabasePath() {
   if (!dbPath) {
     dbPath = path.join(app.getPath("userData"), "bundle.db");
@@ -15,9 +12,6 @@ function getDatabasePath() {
   return dbPath;
 }
 
-/**
- * 初始化数据库
- */
 function initDatabase() {
   try {
     dbPath = getDatabasePath();
@@ -36,13 +30,10 @@ function initDatabase() {
   }
 }
 
-/**
- * 创建数据库表
- */
 function createTables() {
-  // 货品表 - 包含所有货品信息字段
+  // 货品表 - 包含所有货品信息字段（原 goods 表，重命名为 products）
   db.exec(`
-    CREATE TABLE IF NOT EXISTS goods (
+    CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       change TEXT,
       launch_status TEXT,
@@ -160,6 +151,30 @@ function createTables() {
     );
   `);
 
+  // 商品表 - 聚合商品信息表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS goods (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sku TEXT,
+      product_id INTEGER,
+      category TEXT,
+      article_code TEXT,
+      tu TEXT,
+      product_name_en TEXT,
+      product_name_cn TEXT,
+      declared_content TEXT,
+      cn_current_price REAL,
+      shelf_life TEXT,
+      net_weight TEXT,
+      item_size TEXT,
+      country_of_origin TEXT,
+      qty_available INTEGER DEFAULT 0,
+      tu_shelf_life TEXT,
+      updated_at TEXT,
+      UNIQUE(sku)
+    );
+  `);
+
   // 库存表聚合视图
   db.exec(`CREATE VIEW IF NOT EXISTS inventory_aggregated_view AS
           SELECT 
@@ -173,99 +188,121 @@ function createTables() {
           GROUP BY sku, itm_articleid, extendedfield01, sku_descr;
   `);
 
-  db.exec(`
-    CREATE VIEW IF NOT EXISTS products_view AS
-    -- 优先级1: 从库存表出发匹配货品表(TU码匹配)
-    SELECT
-      i.sku,
-      g.id,
-      g.category,
-      g.article_code,
-      g.tu,
-      g.product_name_en,
-      g.product_name_cn,
-      g.declared_content,
-      g.cn_current_price,
-      g.shelf_life,
-      g.net_weight,
-      g.item_size,
-      g.country_of_origin,
-      i.total_qty_available AS qty_available,
-      i.tu_shelf_life,
-      g.updated_at
-    FROM inventory_aggregated_view i
-    INNER JOIN goods g ON TRIM(g.tu) = TRIM(i.sku)
-
-    UNION ALL
-
-    -- 优先级2: 从库存表出发匹配货品表(A码+中文品名匹配,多个取第一个)
-    SELECT
-      i.sku,
-      g.id,
-      g.category,
-      g.article_code,
-      g.tu,
-      g.product_name_en,
-      g.product_name_cn,
-      g.declared_content,
-      g.cn_current_price,
-      g.shelf_life,
-      g.net_weight,
-      g.item_size,
-      g.country_of_origin,
-      i.total_qty_available AS qty_available,
-      i.tu_shelf_life,
-      g.updated_at
-    FROM inventory_aggregated_view i
-    INNER JOIN (
-      SELECT 
-        article_code,
-        product_name_cn,
-        MIN(id) as id
-      FROM goods
-      GROUP BY article_code, product_name_cn
-    ) g_min ON g_min.article_code = i.itm_articleid 
-           AND g_min.product_name_cn = i.extendedfield01
-    INNER JOIN goods g ON g.id = g_min.id
-    WHERE NOT EXISTS (
-      SELECT 1 FROM goods g2 WHERE g2.tu = i.sku
-    )
-
-    UNION ALL
-
-    -- 优先级3: 库存表中找不到对应货品的记录
-    SELECT
-      i.sku,
-      NULL AS id,
-      '-' AS category,
-      i.itm_articleid AS article_code,
-      i.sku AS tu,
-      i.sku_descr AS product_name_en,
-      i.extendedfield01 AS product_name_cn,
-      '-' AS declared_content,
-      0 AS cn_current_price,
-      '-' AS shelf_life,
-      '-' AS net_weight,
-      '-' AS item_size,
-      '-' AS country_of_origin,
-      i.total_qty_available AS qty_available,
-      i.tu_shelf_life,
-      NULL AS updated_at
-    FROM inventory_aggregated_view i
-    WHERE NOT EXISTS (
-      SELECT 1 FROM goods g WHERE g.tu = i.sku
-    )
-    AND NOT EXISTS (
-      SELECT 1 FROM goods g
-      WHERE g.article_code = i.itm_articleid
-        AND g.product_name_cn = i.extendedfield01
-    );
-  `);
+  // 初始化时刷新 goods 表
+  refreshGoodsTable();
 }
 
-/**
- * 获取数据库实例
- */
+// 库存表或货品表更新后，刷新 goods 表
+function refreshGoodsTable() {
+  try {
+    // 清空 goods 表
+    db.exec(`DELETE FROM goods;`);
+
+    // 重新插入数据
+    db.exec(`
+      INSERT INTO goods (sku, product_id, category, article_code, tu, product_name_en, product_name_cn, declared_content, cn_current_price, shelf_life, net_weight, item_size, country_of_origin, qty_available, tu_shelf_life, updated_at)
+      -- 优先级1: 从库存表出发匹配货品表(TU码匹配)
+      SELECT
+        i.sku,
+        p.id,
+        p.category,
+        p.article_code,
+        p.tu,
+        p.product_name_en,
+        p.product_name_cn,
+        p.declared_content,
+        p.cn_current_price,
+        p.shelf_life,
+        p.net_weight,
+        p.item_size,
+        p.country_of_origin,
+        i.total_qty_available,
+        i.tu_shelf_life,
+        p.updated_at
+      FROM inventory_aggregated_view i
+      INNER JOIN products p ON TRIM(p.tu) = TRIM(i.sku);
+    `);
+
+    db.exec(`
+      INSERT INTO goods (sku, product_id, category, article_code, tu, product_name_en, product_name_cn, declared_content, cn_current_price, shelf_life, net_weight, item_size, country_of_origin, qty_available, tu_shelf_life, updated_at)
+      -- 优先级2: 从库存表出发匹配货品表(A码+中文品名匹配,多个取第一个)
+      SELECT
+        i.sku,
+        p.id,
+        p.category,
+        p.article_code,
+        p.tu,
+        p.product_name_en,
+        p.product_name_cn,
+        p.declared_content,
+        p.cn_current_price,
+        p.shelf_life,
+        p.net_weight,
+        p.item_size,
+        p.country_of_origin,
+        i.total_qty_available,
+        i.tu_shelf_life,
+        p.updated_at
+      FROM inventory_aggregated_view i
+      INNER JOIN (
+        SELECT 
+          article_code,
+          product_name_cn,
+          MIN(id) as id
+        FROM products
+        GROUP BY article_code, product_name_cn
+      ) p_min ON p_min.article_code = i.itm_articleid 
+             AND p_min.product_name_cn = i.extendedfield01
+      INNER JOIN products p ON p.id = p_min.id
+      WHERE NOT EXISTS (
+        SELECT 1 FROM products p2 WHERE p2.tu = i.sku
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM goods g WHERE g.sku = i.sku
+      );
+    `);
+
+    db.exec(`
+      INSERT INTO goods (sku, product_id, category, article_code, tu, product_name_en, product_name_cn, declared_content, cn_current_price, shelf_life, net_weight, item_size, country_of_origin, qty_available, tu_shelf_life, updated_at)
+      -- 优先级3: 库存表中找不到对应货品的记录
+      SELECT
+        i.sku,
+        NULL,
+        '-',
+        i.itm_articleid,
+        i.sku,
+        i.sku_descr,
+        i.extendedfield01,
+        '-',
+        0,
+        '-',
+        '-',
+        '-',
+        '-',
+        i.total_qty_available,
+        i.tu_shelf_life,
+        NULL
+      FROM inventory_aggregated_view i
+      WHERE NOT EXISTS (
+        SELECT 1 FROM products p WHERE p.tu = i.sku
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM products p
+        WHERE p.article_code = i.itm_articleid
+          AND p.product_name_cn = i.extendedfield01
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM goods g WHERE g.sku = i.sku
+      );
+    `);
+
+    console.log("Goods table refreshed successfully");
+  } catch (err) {
+    console.error("Failed to refresh goods table:", err);
+    throw err;
+  }
+}
+
 function getDatabase() {
   if (!db) {
     throw new Error("Database not initialized. Call initDatabase() first.");
@@ -273,9 +310,7 @@ function getDatabase() {
   return db;
 }
 
-/**
- * 重新初始化数据库（用于恢复备份后）
- */
+// 重新初始化数据库连接
 function reinitDatabase() {
   if (db) {
     try {
@@ -288,9 +323,7 @@ function reinitDatabase() {
   return initDatabase();
 }
 
-/**
- * 关闭数据库连接
- */
+// 关闭数据库连接
 function closeDatabase() {
   if (db) {
     db.close();
@@ -304,4 +337,5 @@ module.exports = {
   getDatabasePath,
   reinitDatabase,
   closeDatabase,
+  refreshGoodsTable,
 };

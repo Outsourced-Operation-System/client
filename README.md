@@ -4,12 +4,7 @@
 
 基于 **Electron + Vue 3 + TypeScript + Element Plus** 的桌面应用，用于导入货品/库存数据并快捷生成「货组（Bundle）」及管理。
 
-[![Version](https://img.shields.io/badge/version-0.0.3-blue.svg)](https://github.com)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Electron](https://img.shields.io/badge/Electron-39.2.6-47848F.svg)](https://www.electronjs.org/)
-[![Vue](https://img.shields.io/badge/Vue-3.5.24-42b883.svg)](https://vuejs.org/)
-
-[![Version](https://img.shields.io/badge/version-0.0.3-blue.svg)](https://github.com)
+[![Version](https://img.shields.io/badge/version-0.0.3-blue.svg)](https://github.com/mayoi-Akira/bundle)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Electron](https://img.shields.io/badge/Electron-39.2.6-47848F.svg)](https://www.electronjs.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.5.24-42b883.svg)](https://vuejs.org/)
@@ -42,9 +37,7 @@
 
 ## 项目结构
 
-## 项目结构
-
-````bash
+```bash
 .
 ├─ electron/                    # Electron 主进程代码
 │  ├── main.cjs                 # 应用主入口（简化后 50+ 行）
@@ -83,6 +76,8 @@
 └─public/                      # 静态资源
 ```
 
+## 快速开始
+
 ### 环境要求
 
 ```bash
@@ -95,9 +90,7 @@
 
 ```bash
 npm install
-````
-
-### 开发模式
+```
 
 ### 开发模式
 
@@ -147,13 +140,13 @@ npm run electron:build
 
 ### 数据库结构
 
-| 表名            | 说明             | 关键字段                           |
-| --------------- | ---------------- | ---------------------------------- |
-| `goods`         | 货品信息         | A 码、TU、品名、规格、价格、原产国 |
-| `inventory`     | 库存信息         | SKU、批次、到期日、可用库存        |
-| `products_view` | 产品视图（聚合） | TU/SKU 聚合，供搜索使用            |
-| `bundles`       | 货组主表         | 虚拟编码、名称、使用时间、总货值   |
-| `bundle_items`  | 货组明细         | 关联商品、数量、主品/赠品类型      |
+| 表名           | 说明                                | 关键字段                           |
+| -------------- | ----------------------------------- | ---------------------------------- |
+| `products`     | 货品信息（原 goods 表）             | A 码、TU、品名、规格、价格、原产国 |
+| `inventory`    | 库存信息                            | SKU、批次、到期日、可用库存        |
+| `goods`        | 商品聚合表（原 products_view 视图） | TU/SKU 聚合，供搜索使用            |
+| `bundles`      | 货组主表                            | 虚拟编码、名称、使用时间、总货值   |
+| `bundle_items` | 货组明细                            | 关联商品、数量、主品/赠品类型      |
 
 ### 数据操作
 
@@ -190,12 +183,8 @@ npm run electron:build
 ## 数据存储
 
 - 应用使用 `better-sqlite3` 原生 SQLite 数据库，数据自动持久化到 `bundle.db` 文件：
-  - 表 `goods`：存储货品信息（A 码、TU、品名、规格、价格、原产国等）。
+  - 表 `products`：存储货品信息（A 码、TU、品名、规格、价格、原产国等）。
   - 表 `inventory`：存储库存信息（SKU、批次、到期日、可用库存等）。
-  - 视图 `products_view`：将 `goods` 与 `inventory` 按 TU/SKU 聚合，供前端商品搜索使用。
+  - 表 `goods`：将 `products` 与 `inventory` 按 TU/SKU 聚合的独立表，供前端商品搜索使用，当 products 或 inventory 更新时自动刷新。
   - 表 `bundles` / `bundle_items`：存储生成的货组及其包含的商品信息。
 - 数据导入/导出及删除均通过 Electron IPC（在 `electron/main.cjs` 中实现）。
-
-```
-
-```

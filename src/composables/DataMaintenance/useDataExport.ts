@@ -1,9 +1,12 @@
 import { ElMessage } from "element-plus";
-
+/**
+ * 数据导出 Composable
+ * 负责货品数据和库存数据的导出
+ */
 export function useDataExport() {
-  const handleExportGoods = async () => {
+  const handleExportProducts = async () => {
     try {
-      const res = await (window as any).electronAPI.exportGoods();
+      const res = await (window as any).electronAPI.exportProducts();
       if (res.success) {
         ElMessage.success(`成功导出 ${res.count} 条记录到 ${res.filePath}`);
       } else {
@@ -36,7 +39,7 @@ export function useDataExport() {
   };
 
   return {
-    handleExportGoods,
+    handleExportProducts,
     handleExportInventory,
   };
 }

@@ -25,10 +25,9 @@ export interface DraftData {
  * 草稿持久化 Composable
  * 负责草稿的保存、加载和清除（使用 localStorage）
  */
+
+// 草稿持久化管理
 export function useBundleDraft() {
-  /**
-   * 保存草稿到 localStorage
-   */
   const saveDraft = (data: Partial<DraftData>) => {
     try {
       const draft: DraftData = {
@@ -54,9 +53,7 @@ export function useBundleDraft() {
     }
   };
 
-  /**
-   * 从 localStorage 加载草稿
-   */
+  // 加载草稿
   const loadDraft = (): DraftData | null => {
     try {
       const draftStr = localStorage.getItem(STORAGE_KEY);
@@ -70,9 +67,7 @@ export function useBundleDraft() {
     }
   };
 
-  /**
-   * 清除草稿
-   */
+  // 清除草稿
   const clearDraft = () => {
     try {
       localStorage.removeItem(STORAGE_KEY);
@@ -81,9 +76,7 @@ export function useBundleDraft() {
     }
   };
 
-  /**
-   * 自动保存草稿（监听数据变化）
-   */
+  // 设置自动保存监听
   const setupAutoSave = (refs: any[], callback: () => Partial<DraftData>) => {
     watch(
       refs,

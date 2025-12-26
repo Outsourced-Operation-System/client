@@ -1,5 +1,8 @@
 import { ref, onMounted } from "vue";
-
+/**
+ * 数据统计 Composable
+ * 负责获取和管理货品数据统计信息
+ */
 export interface DataStats {
   count: number;
   goodsLastUpdate: string;
@@ -16,7 +19,7 @@ export function useDataStats() {
     labelLastUpdate: "-",
     lastBackupTime: "-",
   });
-
+  // 获取数据统计信息
   const fetchStats = async () => {
     try {
       const res = await (window as any).electronAPI.getStats();

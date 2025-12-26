@@ -1,7 +1,13 @@
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { BundleRecord } from "./useBundleList";
 
+/**
+ * 货组操作 Composable
+ * 负责货组的删除、导出等操作
+ */
+
 export function useBundleOperations() {
+  // 删除单个货组
   const handleDelete = async (row: BundleRecord, onSuccess: () => void) => {
     try {
       await ElMessageBox.confirm("确定要删除该货组吗？", "提示", {
@@ -24,7 +30,7 @@ export function useBundleOperations() {
       }
     }
   };
-
+  // 批量删除货组
   const handleBatchDelete = async (
     bundles: BundleRecord[],
     onSuccess: () => void
@@ -61,7 +67,7 @@ export function useBundleOperations() {
       }
     }
   };
-
+  // 导出单个货组
   const handleExport = async (row: BundleRecord) => {
     try {
       const res = await (window as any).electronAPI.exportBundle(row.id);
@@ -75,7 +81,7 @@ export function useBundleOperations() {
       ElMessage.error("导出出错");
     }
   };
-
+  // 批量导出货组
   const handleBatchExport = async (bundles: BundleRecord[]) => {
     if (bundles.length === 0) {
       ElMessage.warning("请先选择要导出的货组");

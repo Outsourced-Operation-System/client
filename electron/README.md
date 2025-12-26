@@ -60,66 +60,127 @@ app.on("window-all-closed", () => {
 
 **导出方法**：
 
-| 方法              | 说明           | 用途            |
-| ----------------- | -------------- | --------------- |
-| `initDatabase()`  | 初始化数据库   | 应用启动时调用  |
-| `getDatabase()`   | 获取数据库实例 | handlers 中使用 |
-| `closeDatabase()` | 关闭数据库连接 | 应用退出时调用  |
+| 方法                  | 说明              | 用途            |
+| --------------------- | ----------------- | --------------- |
+| `initDatabase()`      | 初始化数据库      | 应用启动时调用  |
+| `getDatabase()`       | 获取数据库实例    | handlers 中使用 |
+| `closeDatabase()`     | 关闭数据库连接    | 应用退出时调用  |
+| `refreshGoodsTable()` | 刷新 goods 聚合表 | 数据更新时调用  |
 
 **数据表结构**：
 
 ```sql
--- 货品表
-CREATE TABLE goods (
-  tu TEXT PRIMARY KEY,
-  a_code TEXT,
-  product_name TEXT,
-  specification TEXT,
-  unit TEXT,
-  origin_country TEXT,
-  product_category TEXT,
-  product_line TEXT,
-  supplier TEXT,
-  brand TEXT,
-  price REAL,
-  net_value REAL
+-- 货品表（原 goods 表，重命名为 products）
+CREATE TABLE products (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  change TEXT,
+  launch_status TEXT,
+  launch_month TEXT,
+  delisting_month TEXT,
+  category TEXT,
+  article_code TEXT,
+  tu TEXT,
+  product_name_en TEXT,
+  product_name_cn TEXT,
+  cn_registration TEXT,
+  declared_content TEXT,
+  cn_current_price REAL,
+  ean_code TEXT,
+  collation TEXT,
+  shelf_life TEXT,
+  net_weight TEXT,
+  item_size TEXT,
+  country_of_origin TEXT,
+  retail TEXT,
+  digital TEXT,
+  updated_at TEXT,
+  UNIQUE(article_code, tu)
 );
 
 -- 库存表
 CREATE TABLE inventory (
-  sku TEXT PRIMARY KEY,
-  tu TEXT,
-  batch_no TEXT,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  reporting_date TEXT,
+  itm_articleid TEXT,
+  sku TEXT,
+  sku_descr TEXT,
+  extendedfield01 TEXT,
+  batch_code TEXT,
   expiry_date TEXT,
-  available_stock INTEGER
+  qty_available INTEGER DEFAULT 0,
+  tu_shelf_life TEXT,
+  updated_at TEXT
+  -- 其他字段略
+);
+
+-- goods 聚合表（原 products_view 视图，改为独立表）
+-- 当 products 或 inventory 表更新时自动刷新
+CREATE TABLE goods (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sku TEXT UNIQUE,
+  product_id INTEGER,
+  category TEXT,
+  article_code TEXT,
+  tu TEXT,
+  product_name_en TEXT,
+  product_name_cn TEXT,
+  declared_content TEXT,
+  cn_current_price REAL,
+  shelf_life TEXT,
+  net_weight TEXT,
+  item_size TEXT,
+  country_of_origin TEXT,
+  qty_available INTEGER DEFAULT 0,
+  tu_shelf_life TEXT,
+  updated_at TEXT
 );
 
 -- 货组表
 CREATE TABLE bundles (
-  virtual_code TEXT PRIMARY KEY,
-  bundle_name TEXT,
-  start_date TEXT,
-  end_date TEXT,
-  total_value REAL,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  virtual_code TEXT UNIQUE,
+  name TEXT,
   created_at TEXT,
-  updated_at TEXT
+  end_date TEXT,
+  usage_type TEXT,
+  total_value REAL,
+  main_value REAL,
+  gift_value REAL,
+  category TEXT,
+  product_type TEXT,
+  by_sku TEXT,
+  fragrance TEXT,
+  status TEXT DEFAULT '有效'
 );
 
 -- 货组明细表
 CREATE TABLE bundle_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  virtual_code TEXT,
+  bundle_id INTEGER,
+  sku TEXT,
+  article_code TEXT,
   tu TEXT,
-  item_type TEXT,  -- 'main' 或 'gift'
-  quantity INTEGER,
-  FOREIGN KEY (virtual_code) REFERENCES bundles(virtual_code)
+  product_name_cn TEXT,
+  product_name_en TEXT,
+  cn_current_price REAL,
+  qty_available INTEGER,
+  tu_shelf_life TEXT,
+  declared_content TEXT,
+  type TEXT,
+  quantity INTEGER DEFAULT 1
 );
 
--- 产品视图（聚合货品和库存）
-CREATE VIEW products_view AS
-  SELECT g.*, i.available_stock
-  FROM goods g
-  LEFT JOIN inventory i ON g.tu = i.tu;
+-- 库存聚合视图
+CREATE VIEW inventory_aggregated_view AS
+  SELECT
+    sku,
+    itm_articleid,
+    extendedfield01,
+    sku_descr,
+    SUM(qty_available) AS total_qty_available,
+    MAX(tu_shelf_life) AS tu_shelf_life
+  FROM inventory
+  GROUP BY sku, itm_articleid, extendedfield01, sku_descr;
 ```
 
 ---
