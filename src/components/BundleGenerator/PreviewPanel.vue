@@ -122,7 +122,8 @@
                                 <td class="value-cell">
                                     <el-date-picker :model-value="endDate"
                                         @update:model-value="$emit('update:endDate', $event)" type="date"
-                                        placeholder="选择结束日期" size="mid" style="width: 93%;" value-format="YYYY-MM-DD" />
+                                        placeholder="请选择结束日期" size="mid" style="width: 93%;" value-format="YYYY-MM-DD"
+                                        :default-value="new Date()" />
                                 </td>
                             </tr>
                         </tbody>

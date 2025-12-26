@@ -1,6 +1,11 @@
 import { ref, watch } from "vue";
 import { ElMessage } from "element-plus";
+// import { de } from "element-plus/es/locales.mjs";
 
+/**
+ * 货组预览面板 Composable
+ * 负责预览面板的状态管理和货组保存
+ */
 export function useBundlePreview() {
   // 预览面板状态
   const isPreviewVisible = ref(false);
@@ -8,7 +13,15 @@ export function useBundlePreview() {
 
   // 货组信息
   const bundleName = ref("");
-  const endDate = ref("");
+  const endDate = ref(
+    (() => {
+      const now = new Date();
+      const year = now.getFullYear() + 100;
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    })()
+  );
   const createTime = ref("");
   const virtualCode = ref("");
   const selectedCategory = ref("");
@@ -174,7 +187,11 @@ export function useBundlePreview() {
 
   const resetPreview = () => {
     bundleName.value = "";
-    endDate.value = "";
+    const now = new Date();
+    const year = now.getFullYear() + 100;
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    endDate.value = `${year}-${month}-${day}`;
     createTime.value = "";
     virtualCode.value = "";
     selectedCategory.value = "";
