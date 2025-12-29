@@ -86,66 +86,89 @@ function registerBundleHandlers() {
   ipcMain.handle("db:get-bundles", async (event, filters) => {
     try {
       const db = getDatabase();
-      let sql = `
-        SELECT 
-          id, virtual_code, name, created_at as create_date, end_date, usage_type,
-          total_value, main_value, gift_value,
-          category, product_type, by_sku, fragrance, status
-        FROM bundles WHERE 1=1
-      `;
+
+      // 构建查询条件
+      let whereClause = " WHERE 1=1";
       const params = [];
 
       // 时间筛选：根据创建日期筛选
       if (filters.startDate) {
-        sql += " AND DATE(created_at) >= ?";
+        whereClause += " AND DATE(created_at) >= ?";
         params.push(filters.startDate);
       }
 
       if (filters.endDate) {
-        sql += " AND DATE(created_at) <= ?";
+        whereClause += " AND DATE(created_at) <= ?";
         params.push(filters.endDate);
       }
 
       // 关键词搜索：优先搜索名字，其次搜索虚拟编码
       if (filters.keyword) {
-        sql += " AND (name LIKE ? OR virtual_code LIKE ?)";
+        whereClause += " AND (name LIKE ? OR virtual_code LIKE ?)";
         params.push(`%${filters.keyword}%`, `%${filters.keyword}%`);
       }
 
       if (filters.status) {
-        sql += " AND status = ?";
+        whereClause += " AND status = ?";
         params.push(filters.status);
       }
 
       if (filters.usageType) {
-        sql += " AND usage_type = ?";
+        whereClause += " AND usage_type = ?";
         params.push(filters.usageType);
       }
 
       if (filters.category) {
-        sql += " AND category = ?";
+        whereClause += " AND category = ?";
         params.push(filters.category);
       }
 
       // 排序：优先按名字匹配度排序（如果有关键词），然后按创建时间倒序
+      let orderByClause = "";
+      const orderParams = [];
       if (filters.keyword) {
-        sql += ` ORDER BY 
+        orderByClause = ` ORDER BY 
           CASE 
             WHEN name LIKE ? THEN 1 
             WHEN virtual_code LIKE ? THEN 2 
             ELSE 3 
           END, created_at DESC`;
-        params.push(`%${filters.keyword}%`, `%${filters.keyword}%`);
+        orderParams.push(`%${filters.keyword}%`, `%${filters.keyword}%`);
       } else {
-        sql += " ORDER BY created_at DESC";
+        orderByClause = " ORDER BY created_at DESC";
       }
 
-      const stmt = db.prepare(sql);
-      const results = stmt.all(...params);
-      return results;
+      // 获取总数
+      const countSql = `SELECT COUNT(*) as total FROM bundles${whereClause}`;
+      const countStmt = db.prepare(countSql);
+      const { total } = countStmt.get(...params);
+
+      // 分页参数
+      const page = filters.page || 1;
+      const pageSize = filters.pageSize || 10;
+      const offset = (page - 1) * pageSize;
+
+      // 查询数据
+      const dataSql = `
+        SELECT 
+          id, virtual_code, name, created_at as create_date, end_date, usage_type,
+          total_value, main_value, gift_value,
+          category, product_type, by_sku, fragrance, status
+        FROM bundles${whereClause}${orderByClause}
+        LIMIT ? OFFSET ?
+      `;
+      const dataStmt = db.prepare(dataSql);
+      const results = dataStmt.all(...params, ...orderParams, pageSize, offset);
+
+      return {
+        data: results,
+        total: total,
+        page: page,
+        pageSize: pageSize,
+      };
     } catch (error) {
       console.error("Get bundles error:", error);
-      return [];
+      return { data: [], total: 0 };
     }
   });
 

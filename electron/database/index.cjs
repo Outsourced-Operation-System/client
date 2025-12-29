@@ -31,7 +31,7 @@ function initDatabase() {
 }
 
 function createTables() {
-  // 货品表 - 包含所有货品信息字段（原 goods 表，重命名为 products）
+  // 货品表 - 包含所有货品信息字段
   db.exec(`
     CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,7 +104,7 @@ function createTables() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS bundles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      virtual_code TEXT UNIQUE,
+      virtual_code TEXT,
       name TEXT,
       created_at TEXT,
       end_date TEXT,

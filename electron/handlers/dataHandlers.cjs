@@ -9,16 +9,329 @@ const dayjs = require("dayjs");
 const fs = require("fs");
 const path = require("path");
 
+/**
+ * 处理合表上传（包含三个sheet的Excel文件）
+ * Sheet顺序：库存表、货品表、标签表
+ */
+function handleCombinedUpload(db, workbook, mode, now) {
+  try {
+    console.log("========== Starting Combined Import ==========");
+    console.log("Mode:", mode);
+    console.log("Sheet Names:", workbook.SheetNames);
+
+    // 检查是否有至少3个sheet
+    if (workbook.SheetNames.length < 3) {
+      return {
+        success: false,
+        error: `Excel文件应包含3个Sheet（库存表、货品表、标签表），实际只有${workbook.SheetNames.length}个Sheet`,
+      };
+    }
+
+    // 按顺序读取三个sheet
+    const inventorySheetName = workbook.SheetNames[0]; // 库存表
+    const productSheetName = workbook.SheetNames[1]; // 货品表
+    const labelSheetName = workbook.SheetNames[2]; // 标签表
+
+    const productSheet = workbook.Sheets[productSheetName];
+    const inventorySheet = workbook.Sheets[inventorySheetName];
+    const labelSheet = workbook.Sheets[labelSheetName];
+
+    const productData = xlsx.utils.sheet_to_json(productSheet);
+    const inventoryData = xlsx.utils.sheet_to_json(inventorySheet);
+    // 使用事务处理所有导入
+    const transaction = db.transaction(() => {
+      let productCount = 0;
+      let inventoryCount = 0;
+      let labelCount = 0;
+
+      // 如果是覆盖模式，先清空所有表
+      if (mode === "overwrite") {
+        console.log("Clearing tables in overwrite mode...");
+        db.prepare("DELETE FROM bundle_items").run();
+        db.prepare("DELETE FROM products").run();
+        db.prepare("DELETE FROM inventory").run();
+        db.prepare("DELETE FROM labels").run();
+      }
+
+      // 1. 导入货品表
+      console.log("Starting product import...");
+      const productStmt = db.prepare(`
+        INSERT INTO products (
+          change, launch_status, launch_month, delisting_month, category,
+          article_code, tu, product_name_en, product_name_cn, cn_registration,
+          declared_content, cn_current_price, ean_code, collation, shelf_life,
+          net_weight, item_size, country_of_origin, retail, digital, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(article_code, tu) DO UPDATE SET
+          change = excluded.change,
+          launch_status = excluded.launch_status,
+          launch_month = excluded.launch_month,
+          delisting_month = excluded.delisting_month,
+          category = excluded.category,
+          product_name_en = excluded.product_name_en,
+          product_name_cn = excluded.product_name_cn,
+          cn_registration = excluded.cn_registration,
+          declared_content = excluded.declared_content,
+          cn_current_price = excluded.cn_current_price,
+          ean_code = excluded.ean_code,
+          collation = excluded.collation,
+          shelf_life = excluded.shelf_life,
+          net_weight = excluded.net_weight,
+          item_size = excluded.item_size,
+          country_of_origin = excluded.country_of_origin,
+          retail = excluded.retail,
+          digital = excluded.digital,
+          updated_at = excluded.updated_at
+      `);
+
+      for (const row of productData) {
+        const articleCode = row["Article Code"] || row["商品代码"] || "";
+        const tu = row["TU"] || row["贸易单位"] || "";
+
+        if (articleCode && tu) {
+          try {
+            productStmt.run(
+              row["Change"] || "",
+              row["Launch Status"] || "",
+              row["Launch Month"] || "",
+              row["Delisting Month"] || "",
+              row["Category "] || row["Category"] || row["类别"] || "",
+              String(articleCode),
+              String(tu),
+              row["Product name (EN)"] || row["商品英文名称"] || "",
+              row["Product Name (CN)"] || row["商品中文名称"] || "",
+              row["CN Registration "] || row["CN Registration"] || "",
+              row["Declared Content"] || row["商品内容信息"] || "",
+              parseFloat(row["CN Current Price"] || row["中国现价"] || 0) || 0,
+              row["EAN Code"] || "",
+              row["Collation"] || "",
+              row["Shelf Life"] || row["保质期"] || "",
+              row["Net Weight Product (kg)"] || row["净重"] || "",
+              row["Item Size L x W x H (mm)"] || row["商品尺寸"] || "",
+              row["Country of Origin"] || row["原产国"] || "",
+              row["Retail"] || "",
+              row["Digital"] || "",
+              now
+            );
+            productCount++;
+          } catch (err) {
+            console.error(
+              "Product import error for row:",
+              articleCode,
+              tu,
+              err.message
+            );
+            throw err;
+          }
+        }
+      }
+      console.log("Product import completed:", productCount);
+
+      // 2. 导入库存表
+      console.log("Starting inventory import...");
+      const inventoryStmt = db.prepare(`
+        INSERT INTO inventory (
+          reporting_date, itm_articleid, itm_dg_chemicals, itm_dg_class_cn,
+          storerkey, facility, inventory_type, main_rituals, busr8,
+          sku, sku_descr, extendedfield01, batch_code, expiry_date,
+          remaining_months, remaining_days, qty, qty_allocated, qty_picked,
+          qty_available, hold_status, ciq, pk, inv_id, lot, sscc,
+          receipt_date, alt_sku, loc, virtual_sku, tu_shelf_life,
+          article_shelf_life, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      for (const row of inventoryData) {
+        const sku = row["SKU"] || row["库存单位"] || "";
+
+        if (sku) {
+          try {
+            inventoryStmt.run(
+              row["Reporting Date"] || "",
+              row["itm_articleid"] || "",
+              row["itm_dg_chemicals"] || "",
+              row["itm_dg_class_cn"] || "",
+              row["STORERKEY"] || "",
+              row["FACILITY"] || "",
+              row["Inventory Type"] || "",
+              row["Main Rituals"] || "",
+              row["Busr8"] || "",
+              String(sku),
+              row["SKUDescr"] || "",
+              row["Extendedfield01"] || "",
+              row["BatchCode"] || "",
+              row["expiry date"] || "",
+              parseInt(row["效期剩余月数"] || 0) || 0,
+              parseInt(row["效期剩余天数"] || 0) || 0,
+              parseInt(row["Qty"] || 0) || 0,
+              parseInt(row["QtyAllocated"] || 0) || 0,
+              parseInt(row["QtyPicked"] || 0) || 0,
+              parseInt(row["QTYavailable"] || row["可用数量"] || 0) || 0,
+              row["holdstatus"] || "",
+              row["CIQ"] || "",
+              row["PK"] || "",
+              row["ID"] || "",
+              row["LOT"] || "",
+              row["SSCC"] || "",
+              row["Receipt Date"] || "",
+              row["ALTSKU"] || "",
+              row["LOC"] || "",
+              row["虚拟SKU"] || row["虚拟 SKU"] || "",
+              row["Tu效期"] || row["Tu 效期"] || "",
+              row["A码效期"] || row["A 码效期"] || "",
+              now
+            );
+            inventoryCount++;
+          } catch (err) {
+            console.error("Inventory import error for SKU:", sku, err.message);
+            throw err;
+          }
+        }
+      }
+      console.log("Inventory import completed:", inventoryCount);
+
+      // 3. 导入标签表
+      console.log("Starting label import...");
+      const labelStmt = db.prepare(`
+        INSERT INTO labels (
+          category, product_type, by_sku, fragrance, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?)
+      `);
+
+      const rawSheet = xlsx.utils.sheet_to_json(labelSheet, { header: 1 });
+      console.log("Label sheet raw rows:", rawSheet.length);
+
+      if (rawSheet.length > 0) {
+        const headers = rawSheet[0];
+        const columnData = {};
+
+        headers.forEach((header, index) => {
+          columnData[index] = [];
+        });
+
+        for (let i = 1; i < rawSheet.length; i++) {
+          const row = rawSheet[i];
+          row.forEach((cell, colIndex) => {
+            if (cell !== undefined && cell !== null && cell !== "") {
+              columnData[colIndex].push(String(cell).trim());
+            }
+          });
+        }
+
+        // 第0列 - 分类
+        if (columnData[0]) {
+          columnData[0].forEach((value) => {
+            try {
+              labelStmt.run(String(value), "", "", "", now);
+              labelCount++;
+            } catch (err) {
+              console.error(
+                "Label import error (category):",
+                value,
+                err.message
+              );
+              throw err;
+            }
+          });
+        }
+
+        // 第1列 - 品类
+        if (columnData[1]) {
+          columnData[1].forEach((value) => {
+            try {
+              labelStmt.run("", String(value), "", "", now);
+              labelCount++;
+            } catch (err) {
+              console.error(
+                "Label import error (product_type):",
+                value,
+                err.message
+              );
+              throw err;
+            }
+          });
+        }
+
+        // 第2列 - 品类 By-sku
+        if (columnData[2]) {
+          columnData[2].forEach((value) => {
+            try {
+              labelStmt.run("", "", String(value), "", now);
+              labelCount++;
+            } catch (err) {
+              console.error("Label import error (by_sku):", value, err.message);
+              throw err;
+            }
+          });
+        }
+
+        // 第3列 - 香型
+        if (columnData[3]) {
+          columnData[3].forEach((value) => {
+            try {
+              labelStmt.run("", "", "", String(value), now);
+              labelCount++;
+            } catch (err) {
+              console.error(
+                "Label import error (fragrance):",
+                value,
+                err.message
+              );
+              throw err;
+            }
+          });
+        }
+      }
+      console.log("Label import completed:", labelCount);
+
+      return { productCount, inventoryCount, labelCount };
+    });
+
+    console.log("Starting transaction...");
+    const result = transaction();
+    console.log("Transaction completed successfully");
+    console.log("Results:", result);
+
+    // 刷新 goods 表
+    console.log("Refreshing goods table...");
+    refreshGoodsTable();
+    console.log("Goods table refreshed");
+
+    return {
+      success: true,
+      productCount: result.productCount,
+      inventoryCount: result.inventoryCount,
+      labelCount: result.labelCount,
+    };
+  } catch (error) {
+    console.error("========== Combined Import Error ==========");
+    console.error("Error Message:", error.message);
+    console.error("Error Stack:", error.stack);
+    console.error("==========================================");
+    return { success: false, error: error.message };
+  }
+}
+
 function registerDataHandlers() {
   // 导入数据
   ipcMain.handle("db:import-data", async (event, type, filePath, mode) => {
     try {
       const db = getDatabase();
       const workbook = xlsx.readFile(filePath);
+      const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+
+      // 处理合表上传（包含三个sheet的Excel文件）
+      if (type === "combined") {
+        return handleCombinedUpload(db, workbook, mode, now);
+      }
+
+      // 单表上传处理
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
       const data = xlsx.utils.sheet_to_json(sheet);
-      const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
 
       const transaction = db.transaction((type, mode, data, now) => {
         if (type === "product") {

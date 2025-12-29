@@ -4,7 +4,7 @@ import { ElMessage } from "element-plus";
  * 数据上传 Composable
  * 负责货品数据、库存数据和标签数据的上传
  */
-export type UploadType = "product" | "inventory" | "label";
+export type UploadType = "product" | "inventory" | "label" | "combined";
 export type UploadMode = "update" | "overwrite";
 
 export function useDataUpload(onUploadSuccess: () => void) {
@@ -53,6 +53,26 @@ export function useDataUpload(onUploadSuccess: () => void) {
     pendingType.value = "label";
     handleUploadWithMode("overwrite");
   };
+
+  // 处理合表文件选择（包含三个sheet的Excel文件）
+  const handleCombinedFileChange = async (file: any) => {
+    pendingFile.value = file.raw;
+    pendingType.value = "combined";
+
+    try {
+      const res = await (window as any).electronAPI.getStats();
+      // 如果任一表为空，直接覆盖上传
+      if (res.count === 0 || res.inventoryCount === 0) {
+        handleUploadWithMode("overwrite");
+      } else {
+        uploadDialogVisible.value = true;
+      }
+    } catch (e) {
+      console.error("获取统计信息失败:", e);
+      uploadDialogVisible.value = true;
+    }
+  };
+
   // 确认覆盖上传
   const confirmOverwrite = () => {
     uploadDialogVisible.value = false;
@@ -90,13 +110,19 @@ export function useDataUpload(onUploadSuccess: () => void) {
       );
       if (res.success) {
         const modeText = "更新";
-        const typeText =
-          pendingType.value === "product"
-            ? "商品"
-            : pendingType.value === "inventory"
-            ? "库存"
-            : "标签";
-        ElMessage.success(`成功${modeText}了 ${res.count} 条${typeText}数据`);
+        if (pendingType.value === "combined") {
+          ElMessage.success(
+            `成功导入合表数据！货品: ${res.productCount} 条，库存: ${res.inventoryCount} 条，标签: ${res.labelCount} 条`
+          );
+        } else {
+          const typeText =
+            pendingType.value === "product"
+              ? "商品"
+              : pendingType.value === "inventory"
+              ? "库存"
+              : "标签";
+          ElMessage.success(`成功${modeText}了 ${res.count} 条${typeText}数据`);
+        }
         onUploadSuccess();
       } else {
         console.error("导入失败详情:", res.error);
@@ -119,6 +145,7 @@ export function useDataUpload(onUploadSuccess: () => void) {
     handleProductFileChange,
     handleInventoryFileChange,
     handleLabelFileChange,
+    handleCombinedFileChange,
     confirmOverwrite,
     handleUploadWithMode,
   };

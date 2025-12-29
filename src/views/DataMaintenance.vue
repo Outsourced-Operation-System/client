@@ -4,7 +4,8 @@
             <!-- 上传区域 -->
             <el-col :span="12">
                 <UploadSection @product-file-change="handleProductFileChange"
-                    @inventory-file-change="handleInventoryFileChange" @label-file-change="handleLabelFileChange" />
+                    @inventory-file-change="handleInventoryFileChange" @label-file-change="handleLabelFileChange"
+                    @combined-file-change="handleCombinedFileChange" />
             </el-col>
 
             <!-- 数据状态与备份区域 -->
@@ -101,6 +102,7 @@ const {
     handleProductFileChange,
     handleInventoryFileChange,
     handleLabelFileChange,
+    handleCombinedFileChange,
     confirmOverwrite,
     handleUploadWithMode
 } = useDataUpload(fetchStats)

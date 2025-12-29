@@ -11,7 +11,8 @@
 
             <!-- 货组表格 -->
             <BundleTable :bundle-list="bundleList.bundleList.value" :loading="bundleList.loading.value"
-                @delete="handleDelete" @export="handleExport" @selection-change="bundleList.handleSelectionChange" />
+                @delete="handleDelete" @export="handleExport" @selection-change="bundleList.handleSelectionChange"
+                @page-size-change="handlePageSizeChange" />
 
             <!-- 分页 -->
             <div class="pagination-container">
@@ -56,6 +57,15 @@ const handleReset = () => {
 const handlePageChange = (page: number) => {
     bundleList.handlePageChange(page)
     bundleList.fetchBundles(filter.getFilters())
+}
+
+// 处理每页大小变化
+const handlePageSizeChange = (newPageSize: number) => {
+    if (bundleList.pageSize.value !== newPageSize) {
+        bundleList.pageSize.value = newPageSize
+        bundleList.currentPage.value = 1
+        bundleList.fetchBundles(filter.getFilters())
+    }
 }
 
 // 删除单个货组
@@ -104,10 +114,6 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-}
-
-.full-height-card :deep(.el-table) {
-    flex: 1;
 }
 
 .pagination-container {

@@ -77,7 +77,7 @@ const emit = defineEmits<Emits>()
 }
 
 .status-item {
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     font-size: 14px;
     display: flex;
     justify-content: flex-start;
@@ -101,8 +101,8 @@ const emit = defineEmits<Emits>()
     display: flex;
     flex-direction: column;
     width: 60%;
-    gap: 15px;
-    margin: 20px 0 0;
+    gap: 10px;
+    margin: 10px 0 0;
 }
 
 .button-row {
