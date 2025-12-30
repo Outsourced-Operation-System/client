@@ -44,16 +44,16 @@ export function useBundlePreview() {
         code = mainItems[0].article_code;
       } else {
         // 如果主品数量多于1个或没有主品，使用现有的编码规则
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, "0");
-        const day = String(now.getDate()).padStart(2, "0");
+        // const now = new Date();
+        // const year = now.getFullYear();
+        // const month = String(now.getMonth() + 1).padStart(2, "0");
+        // const day = String(now.getDate()).padStart(2, "0");
 
         // 获取今天已有的货组数量
         const res = await (window as any).electronAPI.getTodayBundleCount();
-        const sequence = String((res.count || 0) + 1).padStart(4, "0");
+        const sequence = String((res.count || 0) + 1).padStart(6, "0");
 
-        code = `BD${year}${month}${day}${sequence}`;
+        code = `BD${sequence}`;
       }
 
       // 如果有礼盒，添加前缀
@@ -65,12 +65,9 @@ export function useBundlePreview() {
     } catch (e) {
       console.error("生成虚拟编码失败:", e);
       // 降级方案：使用时间戳
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const day = String(now.getDate()).padStart(2, "0");
-      const timestamp = String(now.getTime()).slice(-4);
-      let code = `BD${year}${month}${day}${timestamp}`;
+      ElMessage.error("生成虚拟编码失败，使用时间戳作为编码");
+      const timestamp = String(Date.now()).slice(-4);
+      let code = `BD${timestamp.slice(-6)}`;
       if (hasGiftBox.value) {
         code = "Gbox_" + code;
       }

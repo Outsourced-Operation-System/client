@@ -27,7 +27,12 @@
                 <el-table-column prop="product_name_cn" label="品名" min-width="150" show-overflow-tooltip />
                 <el-table-column prop="qty_available" label="库存数量" width="100" align="right">
                     <template #default="scope">
-                        <span style="font-weight: bold;">{{ scope.row.qty_available || 0 }}</span>
+                        <span style="font-weight: bold;">
+                            <span v-if="scope.row.qty_available != null">
+                                {{ scope.row.qty_available }}
+                            </span>
+                            <span v-else>-</span>
+                        </span>
                     </template>
                 </el-table-column>
                 <el-table-column label="A码库存" width="100" align="right">
@@ -37,18 +42,26 @@
                 </el-table-column>
                 <el-table-column label="SKU效期剩余月数" width="150" align="center">
                     <template #default="scope">
-                        {{ scope.row.tu_shelf_life || '-' }}
+                        <!-- {{ scope.row.remaining_months + ' mo' || '-' }} -->
+                        <span v-if="scope.row.remaining_months != ''">
+                            {{ scope.row.remaining_months + 'mo' }}
+                        </span>
+                        <span v-else>-</span>
                     </template>
                 </el-table-column>
                 <el-table-column prop="declared_content" label="规格" width="100" align="center" />
                 <el-table-column prop="cn_current_price" label="货值" width="100" align="right">
                     <template #default="scope">
-                        ¥{{ scope.row.cn_current_price || 0 }}
+                        <span v-if="scope.row.cn_current_price != null">
+                            ¥{{ scope.row.cn_current_price }}
+                        </span>
+                        <span v-else>-</span>
+
                     </template>
                 </el-table-column>
                 <el-table-column prop="shelf_life" label="保质期" width="100" align="center">
                     <template #default="scope">
-                        {{ scope.row.shelf_life || '-' }}
+                        {{ scope.row.shelf_life }}
                     </template>
                 </el-table-column>
                 <el-table-column prop="product_name_en" label="英文名" min-width="120" show-overflow-tooltip />

@@ -132,7 +132,7 @@ function createTables() {
       product_name_en TEXT,
       cn_current_price REAL,
       qty_available INTEGER,
-      tu_shelf_life TEXT,
+      remaining_months TEXT,
       declared_content TEXT,
       type TEXT,
       quantity INTEGER DEFAULT 1
@@ -169,7 +169,7 @@ function createTables() {
       item_size TEXT,
       country_of_origin TEXT,
       qty_available INTEGER DEFAULT 0,
-      tu_shelf_life TEXT,
+      remaining_months TEXT,
       updated_at TEXT,
       UNIQUE(sku)
     );
@@ -183,7 +183,7 @@ function createTables() {
             extendedfield01,
             sku_descr,
             SUM(qty_available) AS total_qty_available,
-            MAX(tu_shelf_life) AS tu_shelf_life
+            MAX(remaining_months) AS remaining_months
           FROM inventory
           GROUP BY sku, itm_articleid, extendedfield01, sku_descr;
   `);
@@ -200,7 +200,7 @@ function refreshGoodsTable() {
 
     // 重新插入数据
     db.exec(`
-      INSERT INTO goods (sku, product_id, category, article_code, tu, product_name_en, product_name_cn, declared_content, cn_current_price, shelf_life, net_weight, item_size, country_of_origin, qty_available, tu_shelf_life, updated_at)
+      INSERT INTO goods (sku, product_id, category, article_code, tu, product_name_en, product_name_cn, declared_content, cn_current_price, shelf_life, net_weight, item_size, country_of_origin, qty_available, remaining_months, updated_at)
       -- 优先级1: 从库存表出发匹配货品表(TU码匹配)
       SELECT
         i.sku,
@@ -217,14 +217,14 @@ function refreshGoodsTable() {
         p.item_size,
         p.country_of_origin,
         i.total_qty_available,
-        i.tu_shelf_life,
+        i.remaining_months,
         p.updated_at
       FROM inventory_aggregated_view i
       INNER JOIN products p ON TRIM(p.tu) = TRIM(i.sku);
     `);
 
     db.exec(`
-      INSERT INTO goods (sku, product_id, category, article_code, tu, product_name_en, product_name_cn, declared_content, cn_current_price, shelf_life, net_weight, item_size, country_of_origin, qty_available, tu_shelf_life, updated_at)
+      INSERT INTO goods (sku, product_id, category, article_code, tu, product_name_en, product_name_cn, declared_content, cn_current_price, shelf_life, net_weight, item_size, country_of_origin, qty_available, remaining_months, updated_at)
       -- 优先级2: 从库存表出发匹配货品表(A码+中文品名匹配,多个取第一个)
       SELECT
         i.sku,
@@ -241,7 +241,7 @@ function refreshGoodsTable() {
         p.item_size,
         p.country_of_origin,
         i.total_qty_available,
-        i.tu_shelf_life,
+        i.remaining_months,
         p.updated_at
       FROM inventory_aggregated_view i
       INNER JOIN (
@@ -263,7 +263,7 @@ function refreshGoodsTable() {
     `);
 
     db.exec(`
-      INSERT INTO goods (sku, product_id, category, article_code, tu, product_name_en, product_name_cn, declared_content, cn_current_price, shelf_life, net_weight, item_size, country_of_origin, qty_available, tu_shelf_life, updated_at)
+      INSERT INTO goods (sku, product_id, category, article_code, tu, product_name_en, product_name_cn, declared_content, cn_current_price, shelf_life, net_weight, item_size, country_of_origin, qty_available, remaining_months, updated_at)
       -- 优先级3: 库存表中找不到对应货品的记录
       SELECT
         i.sku,
@@ -280,7 +280,7 @@ function refreshGoodsTable() {
         '-',
         '-',
         i.total_qty_available,
-        i.tu_shelf_life,
+        i.remaining_months,
         NULL
       FROM inventory_aggregated_view i
       WHERE NOT EXISTS (

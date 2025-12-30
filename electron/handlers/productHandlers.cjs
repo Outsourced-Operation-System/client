@@ -154,7 +154,7 @@ function registerProductHandlers() {
           qty_available,
           category,
           shelf_life,
-          tu_shelf_life,
+          remaining_months,
           net_weight,
           item_size,
           country_of_origin
@@ -175,20 +175,21 @@ function registerProductHandlers() {
         const cleanResults = results.map((row) => {
           const obj = {
             id: Number(row.id) || 0,
-            article_code: String(row.article_code || ""),
-            tu: String(row.tu || ""),
-            product_name_cn: String(row.product_name_cn || ""),
-            product_name_en: String(row.product_name_en || ""),
-            declared_content: String(row.declared_content || ""),
-            cn_current_price: Number(row.cn_current_price) || 0,
-            qty_available: Number(row.qty_available) || 0,
-            category: String(row.category || ""),
-            shelf_life: String(row.shelf_life || ""),
-            tu_shelf_life: row.tu_shelf_life ? String(row.tu_shelf_life) : null,
-            net_weight: String(row.net_weight || ""),
-            item_size: String(row.item_size || ""),
-            country_of_origin: String(row.country_of_origin || ""),
+            article_code: String(row.article_code ?? "-"),
+            tu: String(row.tu ?? "-"),
+            product_name_cn: String(row.product_name_cn ?? "-"),
+            product_name_en: String(row.product_name_en ?? "-"),
+            declared_content: String(row.declared_content ?? "-"),
+            cn_current_price: row.cn_current_price,
+            qty_available: row.qty_available,
+            category: String(row.category ?? "-"),
+            shelf_life: String(row.shelf_life ?? "-"),
+            remaining_months: String(row.remaining_months) || "",
+            net_weight: String(row.net_weight ?? "-"),
+            item_size: String(row.item_size ?? "-"),
+            country_of_origin: String(row.country_of_origin ?? "-"),
           };
+          // console.log("cn_current_price:", obj.cn_current_price);
           return JSON.parse(JSON.stringify(obj));
         });
 
