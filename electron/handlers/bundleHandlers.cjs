@@ -1,8 +1,42 @@
 const { ipcMain } = require("electron");
-const { getDatabase } = require("../database/index.cjs");
+const { getDatabase, refreshGoodsTable } = require("../database/index.cjs");
 const dayjs = require("dayjs");
 
 function registerBundleHandlers() {
+  // 检查商品库存是否充足
+  ipcMain.handle("db:check-stock-availability", async (event, items) => {
+    try {
+      const db = getDatabase();
+      const insufficientItems = [];
+
+      for (const item of items) {
+        // 通过 sku 查询 goods 表中的库存数量
+        const stock = db
+          .prepare(`SELECT qty_available FROM goods WHERE sku = ?`)
+          .get(item.sku || item.tu);
+
+        const available = stock ? stock.qty_available : 0;
+        if (available < 1) {
+          insufficientItems.push({
+            sku: item.sku || item.tu,
+            article_code: item.article_code,
+            product_name_cn: item.product_name_cn,
+            qty_available: available,
+          });
+        }
+      }
+
+      return {
+        success: true,
+        sufficient: insufficientItems.length === 0,
+        insufficientItems,
+      };
+    } catch (error) {
+      console.error("Check stock availability error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // 创建货组
   ipcMain.handle("db:create-bundle", async (event, bundleData) => {
     try {
@@ -52,8 +86,13 @@ function registerBundleHandlers() {
         const insertItem = db.prepare(`
           INSERT INTO bundle_items (
             bundle_id, sku, article_code, tu, product_name_cn, product_name_en,
-            cn_current_price, qty_available, tu_shelf_life, declared_content, type, quantity
+            cn_current_price, qty_available, remaining_months, declared_content, type, quantity
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        // 扣减库存的 SQL
+        const updateInventory = db.prepare(`
+          UPDATE inventory SET qty_available = qty_available - 1 WHERE sku = ? AND qty_available > 0
         `);
 
         for (const item of items) {
@@ -66,15 +105,22 @@ function registerBundleHandlers() {
             item.product_name_en,
             item.cn_current_price || 0,
             item.qty_available || 0,
-            item.tu_shelf_life || "",
+            item.remaining_months || "",
             item.declared_content || "",
             item.type,
             1
           );
+
+          // 扣减库存（每个商品扣减1）
+          updateInventory.run(item.sku || item.tu);
         }
       });
 
       transaction();
+
+      // 刷新 goods 表以更新库存显示
+      refreshGoodsTable();
+
       return { success: true, virtualCode };
     } catch (error) {
       console.error("Create bundle error:", error);
@@ -83,7 +129,7 @@ function registerBundleHandlers() {
   });
 
   // 获取货组列表
-  ipcMain.handle("db:get-bundles", async (event, filters) => {
+  ipcMain.handle("db:get-bundles", async (event, filters = {}) => {
     try {
       const db = getDatabase();
 
@@ -208,11 +254,31 @@ function registerBundleHandlers() {
   ipcMain.handle("db:delete-bundle", async (event, id) => {
     try {
       const db = getDatabase();
+
+      // 先获取货组中的商品列表，用于还原库存
+      const items = db
+        .prepare(`SELECT sku FROM bundle_items WHERE bundle_id = ?`)
+        .all(id);
+
       const transaction = db.transaction(() => {
+        // 还原库存的 SQL
+        const updateInventory = db.prepare(`
+          UPDATE inventory SET qty_available = qty_available + 1 WHERE sku = ?
+        `);
+
+        // 还原每个商品的库存
+        for (const item of items) {
+          updateInventory.run(item.sku);
+        }
+
         db.prepare("DELETE FROM bundle_items WHERE bundle_id = ?").run(id);
         db.prepare("DELETE FROM bundles WHERE id = ?").run(id);
       });
       transaction();
+
+      // 刷新 goods 表以更新库存显示
+      refreshGoodsTable();
+
       return { success: true };
     } catch (error) {
       console.error("Delete bundle error:", error);
@@ -300,18 +366,41 @@ function registerBundleHandlers() {
   ipcMain.handle("db:batch-delete-bundles", async (event, ids) => {
     try {
       const db = getDatabase();
+
+      // 先获取所有货组中的商品列表，用于还原库存
+      const getItems = db.prepare(
+        `SELECT sku FROM bundle_items WHERE bundle_id = ?`
+      );
+
       const transaction = db.transaction(() => {
         const deleteItems = db.prepare(
           "DELETE FROM bundle_items WHERE bundle_id = ?"
         );
         const deleteBundles = db.prepare("DELETE FROM bundles WHERE id = ?");
 
+        // 还原库存的 SQL
+        const updateInventory = db.prepare(`
+          UPDATE inventory SET qty_available = qty_available + 1 WHERE sku = ?
+        `);
+
         for (const id of ids) {
+          // 获取该货组的商品列表
+          const items = getItems.all(id);
+
+          // 还原每个商品的库存
+          for (const item of items) {
+            updateInventory.run(item.sku);
+          }
+
           deleteItems.run(id);
           deleteBundles.run(id);
         }
       });
       transaction();
+
+      // 刷新 goods 表以更新库存显示
+      refreshGoodsTable();
+
       return { success: true, count: ids.length };
     } catch (error) {
       console.error("Batch delete bundles error:", error);

@@ -60,6 +60,29 @@ export function useBundleItems() {
     bundleItems.value = [];
   };
 
+  // 刷新所有商品的库存数量
+  const refreshItemsStock = async () => {
+    if (bundleItems.value.length === 0) return;
+
+    const skus = bundleItems.value.map((item) => item.tu);
+    try {
+      const res = await (window as any).electronAPI.getBatchSkuStock(skus);
+      if (res && res.data) {
+        const stockMap = new Map(
+          res.data.map((item: any) => [item.sku, item.qty_available])
+        );
+        bundleItems.value.forEach((item) => {
+          const newStock = stockMap.get(item.tu);
+          if (newStock !== undefined) {
+            item.qty_available = newStock;
+          }
+        });
+      }
+    } catch (e) {
+      console.error("刷新库存失败:", e);
+    }
+  };
+
   // 计算主品货值
   const mainValue = computed(() => {
     return bundleItems.value
@@ -98,6 +121,7 @@ export function useBundleItems() {
     addItems,
     removeItem,
     clearAll,
+    refreshItemsStock,
     mainValue,
     giftValue,
     totalValue,

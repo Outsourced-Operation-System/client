@@ -54,11 +54,31 @@
         <!-- 清除确认弹窗 -->
         <ConfirmClearDialog v-model="showConfirmClearDialog" :item-count="items.bundleItems.value.length"
             @confirm="handleConfirmClear" />
+
+        <!-- 库存不足弹窗 -->
+        <el-dialog v-model="showStockDialog" title="库存不足" width="500px" :close-on-click-modal="false">
+            <div class="stock-dialog-content">
+                <p style="margin-bottom: 15px; color: #E6A23C;">以下所选商品库存不足：</p>
+                <el-table :data="insufficientItemsDisplay" border max-height="300">
+                    <el-table-column prop="article_code" label="A码" width="120" />
+                    <el-table-column prop="product_name_cn" label="品名" show-overflow-tooltip />
+                    <el-table-column prop="qty_available" label="当前库存" width="100" align="center" />
+                </el-table>
+                <p v-if="insufficientItems.length > 5" style="margin-top: 10px; color: #909399; font-size: 12px;">
+                    共 {{ insufficientItems.length }} 件商品库存不足，仅显示前 5 条
+                </p>
+            </div>
+            <template #footer>
+                <el-button type="warning" @click="handleClearInsufficientItems">清除所有库存不足商品</el-button>
+                <el-button type="primary" @click="showStockDialog = false">确定</el-button>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { onMounted, onBeforeUnmount, onActivated, ref, watch, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import SearchSection from '@/components/BundleGenerator/SearchSection.vue'
 import BundleTable from '@/components/BundleGenerator/BundleTable.vue'
@@ -70,9 +90,12 @@ import ConfirmClearDialog from '@/components/BundleGenerator/ConfirmClearDialog.
 import { useBundleItems } from '@/composables/BundleGenerator'
 import { useProductSearch } from '@/composables/BundleGenerator'
 import { useLabelSearch } from '@/composables/BundleGenerator'
-import { useBundlePreview } from '@/composables/BundleGenerator'
+import { useBundlePreview, type InsufficientItem } from '@/composables/BundleGenerator'
 import { useArticleStock } from '@/composables/BundleGenerator'
 import { useBundleDraft } from '@/composables/BundleGenerator'
+
+// Router
+const router = useRouter()
 
 // 初始化 composables
 const items = useBundleItems()
@@ -81,6 +104,16 @@ const labels = useLabelSearch()
 const preview = useBundlePreview()
 const stock = useArticleStock()
 const draft = useBundleDraft()
+
+// 刷新所有库存数据
+const refreshAllStock = async () => {
+    if (items.bundleItems.value.length > 0) {
+        // 刷新商品列表中的库存数量
+        await items.refreshItemsStock()
+        // 刷新 A码 库存缓存
+        await stock.refreshAllArticleStock()
+    }
+}
 
 // 监听货品列表变化，实时更新虚拟编码
 watch(
@@ -93,6 +126,23 @@ watch(
 
 // 本地状态
 const showConfirmClearDialog = ref(false)
+const showStockDialog = ref(false)
+const insufficientItems = ref<InsufficientItem[]>([])
+
+// 只显示前5条库存不足商品
+const insufficientItemsDisplay = computed(() => {
+    return insufficientItems.value.slice(0, 5)
+})
+
+// 清除所有库存不足的商品
+const handleClearInsufficientItems = () => {
+    const insufficientSkus = new Set(insufficientItems.value.map(item => item.sku))
+    items.bundleItems.value = items.bundleItems.value.filter(
+        item => !insufficientSkus.has(item.tu)
+    )
+    showStockDialog.value = false
+    insufficientItems.value = []
+}
 
 //处理搜索
 const handleSearch = () => {
@@ -141,18 +191,24 @@ const handleGenerate = () => {
 
 //保存货组
 const handleSave = async () => {
-    const success = await preview.saveBundle(
+    const result = await preview.saveBundle(
         items.bundleItems.value,
         items.mainValue.value,
         items.giftValue.value,
         items.totalValue.value
     )
 
-    if (success) {
+    if (result.success) {
         items.clearAll()
         stock.clearStockCache()
         preview.resetPreview()
         draft.clearDraft()
+        // 跳转到货组管理页面
+        router.push('/manager')
+    } else if (result.reason === 'stock' && result.insufficientItems) {
+        // 显示库存不足弹窗
+        insufficientItems.value = result.insufficientItems
+        showStockDialog.value = true
     }
 }
 
@@ -248,6 +304,11 @@ onMounted(() => {
     loadDraftData()
 })
 
+// 页面激活时刷新库存（从其他页面返回时）
+onActivated(() => {
+    refreshAllStock()
+})
+
 onBeforeUnmount(() => {
     saveDraftData()
 })
@@ -280,5 +341,9 @@ onBeforeUnmount(() => {
 .expand-btn:hover {
     background-color: #f5f7fa;
     color: #409eff;
+}
+
+.stock-dialog-content {
+    padding: 10px 0;
 }
 </style>

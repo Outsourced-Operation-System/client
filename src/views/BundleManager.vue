@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, onActivated } from 'vue'
 import FilterSection from '@/components/BundleManager/FilterSection.vue'
 import BatchOperations from '@/components/BundleManager/BatchOperations.vue'
 import BundleTable from '@/components/BundleManager/BundleTable.vue'
@@ -94,6 +94,11 @@ const handleBatchDelete = () => {
 
 onMounted(() => {
     bundleList.fetchBundles()
+})
+
+// 页面激活时刷新列表（从其他页面返回时，如从生成页面跳转过来）
+onActivated(() => {
+    bundleList.fetchBundles(filter.getFilters())
 })
 </script>
 

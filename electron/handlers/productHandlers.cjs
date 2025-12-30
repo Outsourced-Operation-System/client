@@ -228,6 +228,57 @@ function registerProductHandlers() {
       return { total: 0 };
     }
   });
+
+  // 查询指定 SKU 的库存数量
+  ipcMain.handle("db:get-sku-stock", async (event, sku) => {
+    try {
+      const db = getDatabase();
+
+      if (!sku || !sku.trim()) {
+        return { qty_available: 0 };
+      }
+
+      const sql = `
+        SELECT qty_available
+        FROM goods
+        WHERE sku = ?
+      `;
+
+      const stmt = db.prepare(sql);
+      const result = stmt.get(sku.trim());
+
+      return { qty_available: Number(result?.qty_available) || 0 };
+    } catch (error) {
+      console.error("Get SKU stock error:", error);
+      return { qty_available: 0 };
+    }
+  });
+
+  // 批量查询 SKU 的库存数量
+  ipcMain.handle("db:get-batch-sku-stock", async (event, skus) => {
+    try {
+      const db = getDatabase();
+
+      if (!skus || skus.length === 0) {
+        return { data: [] };
+      }
+
+      const placeholders = skus.map(() => "?").join(",");
+      const sql = `
+        SELECT sku, qty_available
+        FROM goods
+        WHERE sku IN (${placeholders})
+      `;
+
+      const stmt = db.prepare(sql);
+      const results = stmt.all(...skus);
+
+      return { data: results };
+    } catch (error) {
+      console.error("Get batch SKU stock error:", error);
+      return { data: [] };
+    }
+  });
 }
 
 module.exports = {

@@ -1,6 +1,13 @@
 import { ref, watch } from "vue";
 import { ElMessage } from "element-plus";
-// import { de } from "element-plus/es/locales.mjs";
+
+// 定义库存不足商品类型
+export interface InsufficientItem {
+  sku: string;
+  article_code: string;
+  product_name_cn: string;
+  qty_available: number;
+}
 
 /**
  * 货组预览面板 Composable
@@ -108,47 +115,92 @@ export function useBundlePreview() {
     isPreviewVisible.value = !isPreviewVisible.value;
   };
 
+  // 检查库存是否充足
+  const checkStockAvailability = async (
+    bundleItems: any[]
+  ): Promise<{
+    sufficient: boolean;
+    insufficientItems: InsufficientItem[];
+  }> => {
+    try {
+      const res = await (window as any).electronAPI.checkStockAvailability(
+        bundleItems.map((item) => ({
+          sku: item.sku || item.tu,
+          article_code: item.article_code,
+          product_name_cn: item.product_name_cn,
+        }))
+      );
+      if (res.success) {
+        return {
+          sufficient: res.sufficient,
+          insufficientItems: res.insufficientItems || [],
+        };
+      }
+      return { sufficient: true, insufficientItems: [] };
+    } catch (e) {
+      console.error("检查库存失败:", e);
+      return { sufficient: true, insufficientItems: [] };
+    }
+  };
+
   // 保存货组
   const saveBundle = async (
     bundleItems: any[],
     mainValue: string,
     giftValue: string,
     totalValue: string
-  ) => {
+  ): Promise<
+    | { success: true }
+    | {
+        success: false;
+        reason: "validation" | "stock";
+        insufficientItems?: InsufficientItem[];
+      }
+  > => {
     // 验证必填项
     if (!bundleName.value) {
       ElMessage.warning("请输入货组名称");
-      return false;
+      return { success: false, reason: "validation" };
     }
 
     if (!endDate.value) {
       ElMessage.warning("请选择结束日期");
-      return false;
+      return { success: false, reason: "validation" };
     }
 
     if (!selectedCategory.value) {
       ElMessage.warning("请选择分类");
-      return false;
+      return { success: false, reason: "validation" };
     }
 
     if (!selectedProductType.value) {
       ElMessage.warning("请选择品类");
-      return false;
+      return { success: false, reason: "validation" };
     }
 
     if (!selectedBySku.value) {
       ElMessage.warning("请选择By-SKU");
-      return false;
+      return { success: false, reason: "validation" };
     }
 
     if (!selectedFragrance.value) {
       ElMessage.warning("请选择香型");
-      return false;
+      return { success: false, reason: "validation" };
     }
 
     if (bundleItems.length === 0) {
       ElMessage.warning("货组中没有商品");
-      return false;
+      return { success: false, reason: "validation" };
+    }
+
+    // 检查库存是否充足
+    const stockCheck = await checkStockAvailability(bundleItems);
+    if (!stockCheck.sufficient) {
+      return {
+        success: false,
+        reason: "stock",
+        insufficientItems: stockCheck.insufficientItems,
+      };
     }
 
     const bundleData = {
@@ -170,15 +222,15 @@ export function useBundlePreview() {
       const res = await (window as any).electronAPI.createBundle(bundleData);
       if (res.success) {
         ElMessage.success(`货组保存成功！虚拟编码：${virtualCode.value}`);
-        return true;
+        return { success: true };
       } else {
         ElMessage.error("保存失败: " + res.error);
-        return false;
+        return { success: false, reason: "validation" };
       }
     } catch (e) {
       console.error(e);
       ElMessage.error("保存出错");
-      return false;
+      return { success: false, reason: "validation" };
     }
   };
 

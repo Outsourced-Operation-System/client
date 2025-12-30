@@ -9,3 +9,4 @@ export { useBundleDraft } from "./useBundleDraft";
 // 类型导出
 export type { BundleItem } from "./useBundleItems";
 export type { DraftData } from "./useBundleDraft";
+export type { InsufficientItem } from "./useBundlePreview";

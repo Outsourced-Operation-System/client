@@ -34,7 +34,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ),
   getArticleStockTotal: (articleCode) =>
     ipcRenderer.invoke("db:get-article-stock-total", articleCode),
+  getSkuStock: (sku) => ipcRenderer.invoke("db:get-sku-stock", sku),
+  getBatchSkuStock: (skus) =>
+    ipcRenderer.invoke("db:get-batch-sku-stock", skus),
   getTodayBundleCount: () => ipcRenderer.invoke("db:get-today-bundle-count"),
+  checkStockAvailability: (items) =>
+    ipcRenderer.invoke("db:check-stock-availability", items),
   createBundle: (bundleData) =>
     ipcRenderer.invoke("db:create-bundle", bundleData),
   getBundles: (filters) => ipcRenderer.invoke("db:get-bundles", filters),
