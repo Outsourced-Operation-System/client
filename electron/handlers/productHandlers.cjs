@@ -144,7 +144,7 @@ function registerProductHandlers() {
 
         let sql = `
         SELECT 
-          id, 
+          sku, 
           article_code, 
           tu, 
           product_name_cn,
@@ -174,7 +174,7 @@ function registerProductHandlers() {
         // 将结果转换为纯 JSON 对象，避免 IPC 克隆错误
         const cleanResults = results.map((row) => {
           const obj = {
-            id: Number(row.id) || 0,
+            sku: String(row.sku ?? ""),
             article_code: String(row.article_code ?? "-"),
             tu: String(row.tu ?? "-"),
             product_name_cn: String(row.product_name_cn ?? "-"),

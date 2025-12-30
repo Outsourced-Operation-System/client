@@ -2,7 +2,7 @@ import { ref, computed } from "vue";
 import { ElMessage } from "element-plus";
 
 export interface BundleItem {
-  id: number | string;
+  sku: string;
   article_code: string;
   tu: string;
   product_name_cn: string;
@@ -26,7 +26,7 @@ export function useBundleItems() {
   const bundleItems = ref<BundleItem[]>([]);
 
   const addItem = (item: any) => {
-    const exists = bundleItems.value.find((b) => b.id === item.id);
+    const exists = bundleItems.value.find((b) => b.sku === item.sku);
     if (exists) {
       return false;
     }

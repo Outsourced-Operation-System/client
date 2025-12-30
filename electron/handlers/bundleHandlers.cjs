@@ -1,8 +1,25 @@
 const { ipcMain } = require("electron");
-const { getDatabase, refreshGoodsTable } = require("../database/index.cjs");
+const { getDatabase } = require("../database/index.cjs");
 const dayjs = require("dayjs");
 
 function registerBundleHandlers() {
+  // 检查货组名称是否已存在
+  ipcMain.handle("db:check-bundle-name-exists", async (event, name) => {
+    try {
+      const db = getDatabase();
+      const existing = db
+        .prepare(`SELECT id, name FROM bundles WHERE name = ?`)
+        .get(name);
+      return {
+        success: true,
+        exists: !!existing,
+      };
+    } catch (error) {
+      console.error("Check bundle name exists error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // 检查商品库存是否充足
   ipcMain.handle("db:check-stock-availability", async (event, items) => {
     try {
@@ -86,19 +103,29 @@ function registerBundleHandlers() {
         const insertItem = db.prepare(`
           INSERT INTO bundle_items (
             bundle_id, sku, article_code, tu, product_name_cn, product_name_en,
-            cn_current_price, qty_available, remaining_months, declared_content, type, quantity
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            cn_current_price, qty_available, remaining_months, declared_content, type, quantity, inventory_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
-        // 扣减库存的 SQL
+        // 查找要扣减库存的 inventory 记录 id
+        const findInventory = db.prepare(`
+          SELECT id FROM inventory WHERE sku = ? AND qty_available > 0 LIMIT 1
+        `);
+
+        // 扣减库存的 SQL - 根据指定 id 更新
         const updateInventory = db.prepare(`
-          UPDATE inventory SET qty_available = qty_available - 1 WHERE sku = ? AND qty_available > 0
+          UPDATE inventory SET qty_available = qty_available - 1 WHERE id = ?
         `);
 
         for (const item of items) {
+          // 查找要扣减的 inventory 记录
+          const sku = item.sku || item.tu;
+          const inventoryRecord = findInventory.get(sku);
+          const inventoryId = inventoryRecord ? inventoryRecord.id : null;
+
           insertItem.run(
             bundleId,
-            item.sku || item.tu,
+            sku,
             item.article_code,
             item.tu,
             item.product_name_cn,
@@ -108,18 +135,18 @@ function registerBundleHandlers() {
             item.remaining_months || "",
             item.declared_content || "",
             item.type,
-            1
+            1,
+            inventoryId
           );
 
           // 扣减库存（每个商品扣减1）
-          updateInventory.run(item.sku || item.tu);
+          if (inventoryId) {
+            updateInventory.run(inventoryId);
+          }
         }
       });
 
       transaction();
-
-      // 刷新 goods 表以更新库存显示
-      refreshGoodsTable();
 
       return { success: true, virtualCode };
     } catch (error) {
@@ -257,27 +284,26 @@ function registerBundleHandlers() {
 
       // 先获取货组中的商品列表，用于还原库存
       const items = db
-        .prepare(`SELECT sku FROM bundle_items WHERE bundle_id = ?`)
+        .prepare(`SELECT inventory_id FROM bundle_items WHERE bundle_id = ?`)
         .all(id);
 
       const transaction = db.transaction(() => {
-        // 还原库存的 SQL
+        // 还原库存的 SQL - 根据 inventory_id 精确还原
         const updateInventory = db.prepare(`
-          UPDATE inventory SET qty_available = qty_available + 1 WHERE sku = ?
+          UPDATE inventory SET qty_available = qty_available + 1 WHERE id = ?
         `);
 
         // 还原每个商品的库存
         for (const item of items) {
-          updateInventory.run(item.sku);
+          if (item.inventory_id) {
+            updateInventory.run(item.inventory_id);
+          }
         }
 
         db.prepare("DELETE FROM bundle_items WHERE bundle_id = ?").run(id);
         db.prepare("DELETE FROM bundles WHERE id = ?").run(id);
       });
       transaction();
-
-      // 刷新 goods 表以更新库存显示
-      refreshGoodsTable();
 
       return { success: true };
     } catch (error) {
@@ -369,7 +395,7 @@ function registerBundleHandlers() {
 
       // 先获取所有货组中的商品列表，用于还原库存
       const getItems = db.prepare(
-        `SELECT sku FROM bundle_items WHERE bundle_id = ?`
+        `SELECT inventory_id FROM bundle_items WHERE bundle_id = ?`
       );
 
       const transaction = db.transaction(() => {
@@ -378,9 +404,9 @@ function registerBundleHandlers() {
         );
         const deleteBundles = db.prepare("DELETE FROM bundles WHERE id = ?");
 
-        // 还原库存的 SQL
+        // 还原库存的 SQL - 根据 inventory_id 精确还原
         const updateInventory = db.prepare(`
-          UPDATE inventory SET qty_available = qty_available + 1 WHERE sku = ?
+          UPDATE inventory SET qty_available = qty_available + 1 WHERE id = ?
         `);
 
         for (const id of ids) {
@@ -389,7 +415,9 @@ function registerBundleHandlers() {
 
           // 还原每个商品的库存
           for (const item of items) {
-            updateInventory.run(item.sku);
+            if (item.inventory_id) {
+              updateInventory.run(item.inventory_id);
+            }
           }
 
           deleteItems.run(id);
@@ -397,9 +425,6 @@ function registerBundleHandlers() {
         }
       });
       transaction();
-
-      // 刷新 goods 表以更新库存显示
-      refreshGoodsTable();
 
       return { success: true, count: ids.length };
     } catch (error) {

@@ -73,6 +73,18 @@
                 <el-button type="primary" @click="showStockDialog = false">确定</el-button>
             </template>
         </el-dialog>
+
+        <!-- 货组名称重复确认弹窗 -->
+        <el-dialog v-model="showNameExistsDialog" title="名称已存在" width="400px" :close-on-click-modal="false">
+            <div style="padding: 10px 0;">
+                <p>货组名称 "<strong>{{ preview.bundleName.value }}</strong>" 已经存在。</p>
+                <p style="margin-top: 10px; color: #909399;">是否继续使用这个名称？</p>
+            </div>
+            <template #footer>
+                <el-button @click="showNameExistsDialog = false">取消</el-button>
+                <el-button type="primary" @click="handleConfirmSaveWithExistingName">确定</el-button>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
@@ -127,6 +139,7 @@ watch(
 // 本地状态
 const showConfirmClearDialog = ref(false)
 const showStockDialog = ref(false)
+const showNameExistsDialog = ref(false)
 const insufficientItems = ref<InsufficientItem[]>([])
 
 // 只显示前5条库存不足商品
@@ -189,13 +202,14 @@ const handleGenerate = () => {
     preview.showPreviewAndSave(items.bundleItems.value)
 }
 
-//保存货组
-const handleSave = async () => {
+//保存货组（内部方法，支持跳过名称检查）
+const doSaveBundle = async (skipNameCheck: boolean = false) => {
     const result = await preview.saveBundle(
         items.bundleItems.value,
         items.mainValue.value,
         items.giftValue.value,
-        items.totalValue.value
+        items.totalValue.value,
+        skipNameCheck
     )
 
     if (result.success) {
@@ -205,11 +219,25 @@ const handleSave = async () => {
         draft.clearDraft()
         // 跳转到货组管理页面
         router.push('/manager')
+    } else if (result.reason === 'nameExists') {
+        // 显示名称重复确认弹窗
+        showNameExistsDialog.value = true
     } else if (result.reason === 'stock' && result.insufficientItems) {
         // 显示库存不足弹窗
         insufficientItems.value = result.insufficientItems
         showStockDialog.value = true
     }
+}
+
+//保存货组
+const handleSave = async () => {
+    await doSaveBundle(false)
+}
+
+//确认使用已存在的名称保存
+const handleConfirmSaveWithExistingName = async () => {
+    showNameExistsDialog.value = false
+    await doSaveBundle(true)
 }
 
 //加载草稿

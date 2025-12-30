@@ -38,6 +38,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getBatchSkuStock: (skus) =>
     ipcRenderer.invoke("db:get-batch-sku-stock", skus),
   getTodayBundleCount: () => ipcRenderer.invoke("db:get-today-bundle-count"),
+  checkBundleNameExists: (name) =>
+    ipcRenderer.invoke("db:check-bundle-name-exists", name),
   checkStockAvailability: (items) =>
     ipcRenderer.invoke("db:check-stock-availability", items),
   createBundle: (bundleData) =>

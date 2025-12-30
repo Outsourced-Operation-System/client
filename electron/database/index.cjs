@@ -21,7 +21,6 @@ function initDatabase() {
     db.pragma("journal_mode = WAL");
 
     createTables();
-
     console.log("Database initialized successfully");
     return db;
   } catch (err) {
@@ -135,7 +134,8 @@ function createTables() {
       remaining_months TEXT,
       declared_content TEXT,
       type TEXT,
-      quantity INTEGER DEFAULT 1
+      quantity INTEGER DEFAULT 1,
+      inventory_id INTEGER
     );
   `);
 
@@ -148,30 +148,6 @@ function createTables() {
       by_sku TEXT,
       fragrance TEXT,
       updated_at TEXT
-    );
-  `);
-
-  // 商品表 - 聚合商品信息表
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS goods (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      sku TEXT,
-      product_id INTEGER,
-      category TEXT,
-      article_code TEXT,
-      tu TEXT,
-      product_name_en TEXT,
-      product_name_cn TEXT,
-      declared_content TEXT,
-      cn_current_price REAL,
-      shelf_life TEXT,
-      net_weight TEXT,
-      item_size TEXT,
-      country_of_origin TEXT,
-      qty_available INTEGER DEFAULT 0,
-      remaining_months TEXT,
-      updated_at TEXT,
-      UNIQUE(sku)
     );
   `);
 
@@ -188,119 +164,94 @@ function createTables() {
           GROUP BY sku, itm_articleid, extendedfield01, sku_descr;
   `);
 
-  // 初始化时刷新 goods 表
-  refreshGoodsTable();
-}
+  // 商品视图 - 聚合商品信息（原来是表，现改为视图）
+  db.exec(`CREATE VIEW IF NOT EXISTS goods AS
+    -- 优先级1: 从库存表出发匹配货品表(TU码匹配)
+    SELECT
+      i.sku AS sku,
+      p.id AS product_id,
+      p.category AS category,
+      p.article_code AS article_code,
+      p.tu AS tu,
+      p.product_name_en AS product_name_en,
+      p.product_name_cn AS product_name_cn,
+      p.declared_content AS declared_content,
+      p.cn_current_price AS cn_current_price,
+      p.shelf_life AS shelf_life,
+      p.net_weight AS net_weight,
+      p.item_size AS item_size,
+      p.country_of_origin AS country_of_origin,
+      i.total_qty_available AS qty_available,
+      i.remaining_months AS remaining_months,
+      p.updated_at AS updated_at
+    FROM inventory_aggregated_view i
+    INNER JOIN products p ON TRIM(p.tu) = TRIM(i.sku)
 
-// 库存表或货品表更新后，刷新 goods 表
-function refreshGoodsTable() {
-  try {
-    // 清空 goods 表
-    db.exec(`DELETE FROM goods;`);
+    UNION ALL
 
-    // 重新插入数据
-    db.exec(`
-      INSERT INTO goods (sku, product_id, category, article_code, tu, product_name_en, product_name_cn, declared_content, cn_current_price, shelf_life, net_weight, item_size, country_of_origin, qty_available, remaining_months, updated_at)
-      -- 优先级1: 从库存表出发匹配货品表(TU码匹配)
-      SELECT
-        i.sku,
-        p.id,
-        p.category,
-        p.article_code,
-        p.tu,
-        p.product_name_en,
-        p.product_name_cn,
-        p.declared_content,
-        p.cn_current_price,
-        p.shelf_life,
-        p.net_weight,
-        p.item_size,
-        p.country_of_origin,
-        i.total_qty_available,
-        i.remaining_months,
-        p.updated_at
-      FROM inventory_aggregated_view i
-      INNER JOIN products p ON TRIM(p.tu) = TRIM(i.sku);
-    `);
+    -- 优先级2: 从库存表出发匹配货品表(A码+中文品名匹配,多个取第一个)
+    SELECT
+      i.sku AS sku,
+      p.id AS product_id,
+      p.category AS category,
+      p.article_code AS article_code,
+      p.tu AS tu,
+      p.product_name_en AS product_name_en,
+      p.product_name_cn AS product_name_cn,
+      p.declared_content AS declared_content,
+      p.cn_current_price AS cn_current_price,
+      p.shelf_life AS shelf_life,
+      p.net_weight AS net_weight,
+      p.item_size AS item_size,
+      p.country_of_origin AS country_of_origin,
+      i.total_qty_available AS qty_available,
+      i.remaining_months AS remaining_months,
+      p.updated_at AS updated_at
+    FROM inventory_aggregated_view i
+    INNER JOIN (
+      SELECT 
+        article_code,
+        product_name_cn,
+        MIN(id) as id
+      FROM products
+      GROUP BY article_code, product_name_cn
+    ) p_min ON p_min.article_code = i.itm_articleid 
+           AND p_min.product_name_cn = i.extendedfield01
+    INNER JOIN products p ON p.id = p_min.id
+    WHERE NOT EXISTS (
+      SELECT 1 FROM products p2 WHERE TRIM(p2.tu) = TRIM(i.sku)
+    )
 
-    db.exec(`
-      INSERT INTO goods (sku, product_id, category, article_code, tu, product_name_en, product_name_cn, declared_content, cn_current_price, shelf_life, net_weight, item_size, country_of_origin, qty_available, remaining_months, updated_at)
-      -- 优先级2: 从库存表出发匹配货品表(A码+中文品名匹配,多个取第一个)
-      SELECT
-        i.sku,
-        p.id,
-        p.category,
-        p.article_code,
-        p.tu,
-        p.product_name_en,
-        p.product_name_cn,
-        p.declared_content,
-        p.cn_current_price,
-        p.shelf_life,
-        p.net_weight,
-        p.item_size,
-        p.country_of_origin,
-        i.total_qty_available,
-        i.remaining_months,
-        p.updated_at
-      FROM inventory_aggregated_view i
-      INNER JOIN (
-        SELECT 
-          article_code,
-          product_name_cn,
-          MIN(id) as id
-        FROM products
-        GROUP BY article_code, product_name_cn
-      ) p_min ON p_min.article_code = i.itm_articleid 
-             AND p_min.product_name_cn = i.extendedfield01
-      INNER JOIN products p ON p.id = p_min.id
-      WHERE NOT EXISTS (
-        SELECT 1 FROM products p2 WHERE p2.tu = i.sku
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM goods g WHERE g.sku = i.sku
-      );
-    `);
+    UNION ALL
 
-    db.exec(`
-      INSERT INTO goods (sku, product_id, category, article_code, tu, product_name_en, product_name_cn, declared_content, cn_current_price, shelf_life, net_weight, item_size, country_of_origin, qty_available, remaining_months, updated_at)
-      -- 优先级3: 库存表中找不到对应货品的记录
-      SELECT
-        i.sku,
-        NULL,
-        '-',
-        i.itm_articleid,
-        i.sku,
-        i.sku_descr,
-        i.extendedfield01,
-        '-',
-        0,
-        '-',
-        '-',
-        '-',
-        '-',
-        i.total_qty_available,
-        i.remaining_months,
-        NULL
-      FROM inventory_aggregated_view i
-      WHERE NOT EXISTS (
-        SELECT 1 FROM products p WHERE p.tu = i.sku
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM products p
-        WHERE p.article_code = i.itm_articleid
-          AND p.product_name_cn = i.extendedfield01
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM goods g WHERE g.sku = i.sku
-      );
-    `);
-
-    console.log("Goods table refreshed successfully");
-  } catch (err) {
-    console.error("Failed to refresh goods table:", err);
-    throw err;
-  }
+    -- 优先级3: 库存表中找不到对应货品的记录
+    SELECT
+      i.sku AS sku,
+      NULL AS product_id,
+      '-' AS category,
+      i.itm_articleid AS article_code,
+      i.sku AS tu,
+      i.sku_descr AS product_name_en,
+      i.extendedfield01 AS product_name_cn,
+      '-' AS declared_content,
+      0 AS cn_current_price,
+      '-' AS shelf_life,
+      '-' AS net_weight,
+      '-' AS item_size,
+      '-' AS country_of_origin,
+      i.total_qty_available AS qty_available,
+      i.remaining_months AS remaining_months,
+      NULL AS updated_at
+    FROM inventory_aggregated_view i
+    WHERE NOT EXISTS (
+      SELECT 1 FROM products p WHERE TRIM(p.tu) = TRIM(i.sku)
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM products p
+      WHERE p.article_code = i.itm_articleid
+        AND p.product_name_cn = i.extendedfield01
+    )
+  `);
 }
 
 function getDatabase() {
@@ -337,5 +288,4 @@ module.exports = {
   getDatabasePath,
   reinitDatabase,
   closeDatabase,
-  refreshGoodsTable,
 };

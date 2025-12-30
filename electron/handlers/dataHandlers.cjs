@@ -1,9 +1,5 @@
 const { ipcMain, dialog, app } = require("electron");
-const {
-  getDatabase,
-  getDatabasePath,
-  refreshGoodsTable,
-} = require("../database/index.cjs");
+const { getDatabase, getDatabasePath } = require("../database/index.cjs");
 const xlsx = require("xlsx");
 const dayjs = require("dayjs");
 const fs = require("fs");
@@ -295,11 +291,6 @@ function handleCombinedUpload(db, workbook, mode, now) {
     console.log("Transaction completed successfully");
     console.log("Results:", result);
 
-    // 刷新 goods 表
-    console.log("Refreshing goods table...");
-    refreshGoodsTable();
-    console.log("Goods table refreshed");
-
     return {
       success: true,
       productCount: result.productCount,
@@ -536,11 +527,6 @@ function registerDataHandlers() {
 
       transaction(type, mode, data, now);
 
-      // 导入货品或库存数据后，刷新 goods 表
-      if (type === "product" || type === "inventory") {
-        refreshGoodsTable();
-      }
-
       return { success: true, count: data.length };
     } catch (error) {
       console.error("========== Import Error ==========");
@@ -684,8 +670,6 @@ function registerDataHandlers() {
       // 先删除所有引用货品表的 bundle_items 记录，再删除货品表数据
       db.prepare("DELETE FROM bundle_items").run();
       db.prepare("DELETE FROM products").run();
-      // 刷新 goods 表
-      refreshGoodsTable();
       return { success: true };
     } catch (error) {
       console.error("Clear products error:", error);
@@ -698,8 +682,6 @@ function registerDataHandlers() {
     try {
       const db = getDatabase();
       db.prepare("DELETE FROM inventory").run();
-      // 刷新 goods 表
-      refreshGoodsTable();
       return { success: true };
     } catch (error) {
       console.error("Clear inventory error:", error);

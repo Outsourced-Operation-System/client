@@ -143,17 +143,34 @@ export function useBundlePreview() {
     }
   };
 
+  // 检查货组名称是否已存在
+  const checkBundleNameExists = async (
+    name: string
+  ): Promise<{ exists: boolean }> => {
+    try {
+      const res = await (window as any).electronAPI.checkBundleNameExists(name);
+      if (res.success) {
+        return { exists: res.exists };
+      }
+      return { exists: false };
+    } catch (e) {
+      console.error("检查货组名称失败:", e);
+      return { exists: false };
+    }
+  };
+
   // 保存货组
   const saveBundle = async (
     bundleItems: any[],
     mainValue: string,
     giftValue: string,
-    totalValue: string
+    totalValue: string,
+    skipNameCheck: boolean = false
   ): Promise<
     | { success: true }
     | {
         success: false;
-        reason: "validation" | "stock";
+        reason: "validation" | "stock" | "nameExists";
         insufficientItems?: InsufficientItem[];
       }
   > => {
@@ -161,6 +178,14 @@ export function useBundlePreview() {
     if (!bundleName.value) {
       ElMessage.warning("请输入货组名称");
       return { success: false, reason: "validation" };
+    }
+
+    // 检查货组名称是否已存在（如果未跳过检查）
+    if (!skipNameCheck) {
+      const nameCheck = await checkBundleNameExists(bundleName.value);
+      if (nameCheck.exists) {
+        return { success: false, reason: "nameExists" };
+      }
     }
 
     if (!endDate.value) {
@@ -273,5 +298,6 @@ export function useBundlePreview() {
     resetPreview,
     generateVirtualCode,
     updateVirtualCode,
+    checkBundleNameExists,
   };
 }
