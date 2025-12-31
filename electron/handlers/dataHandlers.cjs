@@ -975,6 +975,91 @@ function registerDataHandlers() {
       return { success: false, error: error.message };
     }
   });
+
+  // 删除标签
+  ipcMain.handle("db:delete-label", async (event, field, value) => {
+    try {
+      const db = getDatabase();
+
+      // 字段映射
+      const fieldMap = {
+        category: "category",
+        productType: "product_type",
+        bySku: "by_sku",
+        fragrance: "fragrance",
+      };
+
+      const dbField = fieldMap[field];
+      if (!dbField) {
+        return { success: false, error: "无效的字段名" };
+      }
+
+      // 删除该字段中所有匹配的值
+      const query = `
+        UPDATE labels 
+        SET ${dbField} = NULL
+        WHERE ${dbField} = ?
+      `;
+
+      const result = db.prepare(query).run(value);
+
+      return {
+        success: true,
+        affectedRows: result.changes,
+      };
+    } catch (error) {
+      console.error("Delete label error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 新增标签
+  ipcMain.handle("db:add-label", async (event, field, value) => {
+    try {
+      const db = getDatabase();
+
+      // 字段映射
+      const fieldMap = {
+        category: "category",
+        productType: "product_type",
+        bySku: "by_sku",
+        fragrance: "fragrance",
+      };
+
+      const dbField = fieldMap[field];
+      if (!dbField) {
+        return { success: false, error: "无效的字段名" };
+      }
+
+      // 检查是否已存在
+      const checkQuery = `
+        SELECT COUNT(*) as count
+        FROM labels
+        WHERE ${dbField} = ?
+      `;
+
+      const existing = db.prepare(checkQuery).get(value);
+      if (existing.count > 0) {
+        return { success: false, exists: true, error: "该标签已存在" };
+      }
+
+      // 插入新标签
+      const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+      const insertQuery = `
+        INSERT INTO labels (${dbField}, updated_at)
+        VALUES (?, ?)
+      `;
+
+      db.prepare(insertQuery).run(value, now);
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      console.error("Add label error:", error);
+      return { success: false, error: error.message };
+    }
+  });
 }
 
 module.exports = {

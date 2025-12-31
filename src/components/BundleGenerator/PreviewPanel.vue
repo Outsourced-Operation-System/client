@@ -71,50 +71,125 @@
                             <tr>
                                 <td class="label-cell">分类</td>
                                 <td class="value-cell">
-                                    <el-select :model-value="selectedCategory"
-                                        @update:model-value="$emit('update:selectedCategory', $event)"
-                                        placeholder="输入关键字搜索" size="mid" style="width: 100%;" filterable remote
-                                        :remote-method="(query: string) => $emit('searchCategory', query)"
-                                        :loading="categoryLoading">
-                                        <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
-                                    </el-select>
+                                    <div style="display: flex;">
+                                        <el-select :model-value="selectedCategory"
+                                            @update:model-value="$emit('update:selectedCategory', $event)"
+                                            placeholder="输入关键字搜索" size="mid" style="flex: 1;" filterable remote
+                                            :remote-method="(query: string) => $emit('searchCategory', query)"
+                                            :loading="categoryLoading">
+                                            <template #default>
+                                                <el-option v-for="cat in categories" :key="cat" :label="cat"
+                                                    :value="cat">
+                                                    <div
+                                                        style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                                        <span>{{ cat }}</span>
+                                                        <el-button link type="danger" size="small"
+                                                            @click.stop="$emit('deleteLabel', 'category', cat)"
+                                                            style="padding: 0; margin-left: 8px;">
+                                                            <el-icon>
+                                                                <Close />
+                                                            </el-icon>
+                                                        </el-button>
+                                                    </div>
+                                                </el-option>
+                                            </template>
+                                        </el-select>
+                                        <el-button size="mid" @click="$emit('addLabel', 'category')"
+                                            style="flex-shrink: 0;">新增</el-button>
+                                    </div>
                                 </td>
                             </tr>
                             <tr>
                                 <td class="label-cell">品类</td>
                                 <td class="value-cell">
-                                    <el-select :model-value="selectedProductType"
-                                        @update:model-value="$emit('update:selectedProductType', $event)"
-                                        placeholder="输入关键字搜索" size="mid" style="width: 100%;" filterable remote
-                                        :remote-method="(query: string) => $emit('searchProductType', query)"
-                                        :loading="productTypeLoading">
-                                        <el-option v-for="type in productTypes" :key="type" :label="type"
-                                            :value="type" />
-                                    </el-select>
+                                    <div style="display: flex;">
+                                        <el-select :model-value="selectedProductType"
+                                            @update:model-value="$emit('update:selectedProductType', $event)"
+                                            placeholder="输入关键字搜索" size="mid" style="flex: 1;" filterable remote
+                                            :remote-method="(query: string) => $emit('searchProductType', query)"
+                                            :loading="productTypeLoading">
+                                            <template #default>
+                                                <el-option v-for="type in productTypes" :key="type" :label="type"
+                                                    :value="type">
+                                                    <div
+                                                        style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                                        <span>{{ type }}</span>
+                                                        <el-button link type="danger" size="small"
+                                                            @click.stop="$emit('deleteLabel', 'productType', type)"
+                                                            style="padding: 0; margin-left: 8px;">
+                                                            <el-icon>
+                                                                <Close />
+                                                            </el-icon>
+                                                        </el-button>
+                                                    </div>
+                                                </el-option>
+                                            </template>
+                                        </el-select>
+                                        <el-button size="mid" @click="$emit('addLabel', 'productType')"
+                                            style="flex-shrink: 0;">新增</el-button>
+                                    </div>
                                 </td>
                             </tr>
                             <tr>
                                 <td class="label-cell">By-SKU</td>
                                 <td class="value-cell">
-                                    <el-select :model-value="selectedBySku"
-                                        @update:model-value="$emit('update:selectedBySku', $event)"
-                                        placeholder="输入关键字搜索" size="mid" style="width: 100%;" filterable remote
-                                        :remote-method="(query: string) => $emit('searchBySku', query)"
-                                        :loading="bySkuLoading">
-                                        <el-option v-for="sku in bySkuList" :key="sku" :label="sku" :value="sku" />
-                                    </el-select>
+                                    <div style="display: flex;">
+                                        <el-select :model-value="selectedBySku"
+                                            @update:model-value="$emit('update:selectedBySku', $event)"
+                                            placeholder="输入关键字搜索" size="mid" style="flex: 1;" filterable remote
+                                            :remote-method="(query: string) => $emit('searchBySku', query)"
+                                            :loading="bySkuLoading">
+                                            <template #default>
+                                                <el-option v-for="sku in bySkuList" :key="sku" :label="sku"
+                                                    :value="sku">
+                                                    <div
+                                                        style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                                        <span>{{ sku }}</span>
+                                                        <el-button link type="danger" size="small"
+                                                            @click.stop="$emit('deleteLabel', 'bySku', sku)"
+                                                            style="padding: 0; margin-left: 8px;">
+                                                            <el-icon>
+                                                                <Close />
+                                                            </el-icon>
+                                                        </el-button>
+                                                    </div>
+                                                </el-option>
+                                            </template>
+                                        </el-select>
+                                        <el-button size="mid" @click="$emit('addLabel', 'bySku')"
+                                            style="flex-shrink: 0;">新增</el-button>
+                                    </div>
                                 </td>
                             </tr>
                             <tr>
                                 <td class="label-cell">香型</td>
                                 <td class="value-cell">
-                                    <el-select :model-value="selectedFragrance"
-                                        @update:model-value="$emit('update:selectedFragrance', $event)"
-                                        placeholder="输入关键字搜索" size="mid" style="width: 100%;" filterable remote
-                                        :remote-method="(query: string) => $emit('searchFragrance', query)"
-                                        :loading="fragranceLoading">
-                                        <el-option v-for="frag in fragrances" :key="frag" :label="frag" :value="frag" />
-                                    </el-select>
+                                    <div style="display: flex; gap: 0px;">
+                                        <el-select :model-value="selectedFragrance"
+                                            @update:model-value="$emit('update:selectedFragrance', $event)"
+                                            placeholder="输入关键字搜索" size="mid" style="flex: 1;" filterable remote
+                                            :remote-method="(query: string) => $emit('searchFragrance', query)"
+                                            :loading="fragranceLoading">
+                                            <template #default>
+                                                <el-option v-for="frag in fragrances" :key="frag" :label="frag"
+                                                    :value="frag">
+                                                    <div
+                                                        style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                                        <span>{{ frag }}</span>
+                                                        <el-button link type="danger" size="small"
+                                                            @click.stop="$emit('deleteLabel', 'fragrance', frag)"
+                                                            style="padding: 0; margin-left: 8px;">
+                                                            <el-icon>
+                                                                <Close />
+                                                            </el-icon>
+                                                        </el-button>
+                                                    </div>
+                                                </el-option>
+                                            </template>
+                                        </el-select>
+                                        <el-button size="mid" @click="$emit('addLabel', 'fragrance')"
+                                            style="flex-shrink: 0;">新增</el-button>
+                                    </div>
                                 </td>
                             </tr>
                             <tr>
@@ -139,7 +214,7 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowRight } from '@element-plus/icons-vue'
+import { ArrowRight, Close } from '@element-plus/icons-vue'
 
 // Props
 defineProps<{
@@ -183,6 +258,8 @@ defineEmits<{
     searchProductType: [query: string]
     searchBySku: [query: string]
     searchFragrance: [query: string]
+    deleteLabel: [field: string, value: string]
+    addLabel: [field: string]
 }>()
 </script>
 

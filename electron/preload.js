@@ -74,4 +74,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   searchLabels: (field, keyword) =>
     ipcRenderer.invoke("db:search-labels", field, keyword),
   getLabelValues: (field) => ipcRenderer.invoke("db:get-label-values", field),
+  deleteLabel: (field, value) =>
+    ipcRenderer.invoke("db:delete-label", field, value),
+  addLabel: (field, value) => ipcRenderer.invoke("db:add-label", field, value),
 });

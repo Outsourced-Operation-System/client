@@ -4,7 +4,13 @@
         :body-style="{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '20px' }">
         <template #header>
             <div class="card-header">
-                <span>生成货组</span>
+                <div class="header-left">
+                    <span>生成货组</span>
+                    <div v-show="!isPreviewVisible" class="count-info">
+                        <span class="count-item">主品数量: <span class="count-number main">{{ mainCount }}</span></span>
+                        <span class="count-item">赠品数量: <span class="count-number gift">{{ giftCount }}</span></span>
+                    </div>
+                </div>
                 <div v-show="!isPreviewVisible" class="value-info">
                     <span class="value-item">主品货值: <span class="value-number">¥{{ mainValue }}</span></span>
                     <span class="value-item">赠品货值: <span class="value-number">¥{{ giftValue }}</span></span>
@@ -12,9 +18,9 @@
                 </div>
             </div>
         </template>
-        <div style="flex: 1; overflow: hidden;">
-            <el-table :data="bundleItems" border style="width: 100%; height: 100%;" height="100%">
-                <el-table-column label="主品/赠品" width="120" align="center">
+        <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+            <el-table :data="paginatedItems" border style="width: 100%; flex: 1;" height="100%">
+                <el-table-column label="主品/赠品" width="120" align="center" sortable :sort-method="sortByType">
                     <template #default="scope">
                         <el-select v-model="scope.row.type" size="small">
                             <el-option label="主品" value="main" />
@@ -67,29 +73,44 @@
                 <el-table-column prop="product_name_en" label="英文名" min-width="120" show-overflow-tooltip />
                 <el-table-column label="操作" width="100" align="center" fixed="right">
                     <template #default="scope">
-                        <el-button type="danger" link size="small" @click="handleRemove(scope.$index)">移除</el-button>
+                        <el-button type="danger" link size="small"
+                            @click="handleRemove(getActualIndex(scope.$index))">移除</el-button>
                     </template>
                 </el-table-column>
             </el-table>
         </div>
-        <div class="bundle-actions" style="display: flex; justify-content: flex-end;">
-            <el-button type="danger" @click="$emit('clear')" size="large" style="width: 200px;"
-                :disabled="bundleItems.length === 0 && !hasGenerated">清除全部</el-button>
-            <el-button type="primary" @click="$emit('generate')" size="large" v-if="!hasGenerated"
-                style="width: 200px;">
-                新建货组
-            </el-button>
-            <el-button type="primary" @click="$emit('generate')" size="large" v-if="hasGenerated && !isPreviewVisible"
-                style="width: 200px;">
-                信息预览
-            </el-button>
+        <div class="bundle-actions" style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="pagination-wrapper">
+                <span class="total-info">共 {{ bundleItems.length }} 条<span v-if="bundleItems.length >= MAX_ITEMS"
+                        class="limit-warning">（已达上限）</span></span>
+                <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize"
+                    :page-sizes="[10, 15, 20, 50]" :total="bundleItems.length" layout="sizes, prev, pager, next, jumper"
+                    @size-change="handleSizeChange" @current-change="handleCurrentChange" />
+            </div>
+            <div class="action-buttons">
+                <el-button type="danger" @click="$emit('clear')" size="large" style="width: 200px;"
+                    :disabled="bundleItems.length === 0 && !hasGenerated">清除全部</el-button>
+                <el-button type="primary" @click="$emit('generate')" size="large" v-if="!hasGenerated"
+                    style="width: 200px;">
+                    新建货组
+                </el-button>
+                <el-button type="primary" @click="$emit('generate')" size="large"
+                    v-if="hasGenerated && !isPreviewVisible" style="width: 200px;">
+                    信息预览
+                </el-button>
+            </div>
         </div>
     </el-card>
 </template>
 
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+
+// 最大元素数量限制
+const MAX_ITEMS = 500
+
 // Props
-defineProps<{
+const props = defineProps<{
     bundleItems: any[]
     isPreviewVisible: boolean
     hasGenerated: boolean
@@ -98,6 +119,49 @@ defineProps<{
     totalValue: string
     getArticleStockTotal: (articleCode: string) => number
 }>()
+
+// 分页相关
+const currentPage = ref(1)
+const pageSize = ref(10)
+
+// 分页后的数据
+const paginatedItems = computed(() => {
+    const start = (currentPage.value - 1) * pageSize.value
+    const end = start + pageSize.value
+    return props.bundleItems.slice(start, end)
+})
+
+// 获取实际索引（用于删除操作）
+const getActualIndex = (pageIndex: number) => {
+    return (currentPage.value - 1) * pageSize.value + pageIndex
+}
+
+// 监听数据变化，自动调整当前页
+watch(() => props.bundleItems.length, (newLen) => {
+    const maxPage = Math.ceil(newLen / pageSize.value) || 1
+    if (currentPage.value > maxPage) {
+        currentPage.value = maxPage
+    }
+})
+
+const handleSizeChange = (val: number) => {
+    pageSize.value = val
+    currentPage.value = 1
+}
+
+const handleCurrentChange = (val: number) => {
+    currentPage.value = val
+}
+
+// 计算主品和赠品数量
+const mainCount = computed(() => props.bundleItems.filter(item => item.type === 'main').length)
+const giftCount = computed(() => props.bundleItems.filter(item => item.type === 'gift').length)
+
+// 主品/赠品排序方法：主品(main) 排在赠品(gift) 前面为升序
+const sortByType = (a: any, b: any) => {
+    if (a.type === b.type) return 0
+    return a.type === 'main' ? -1 : 1
+}
 
 // Emits
 const emit = defineEmits<{
@@ -118,9 +182,38 @@ const handleRemove = (index: number) => {
     align-items: center;
 }
 
-.card-header>span {
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.header-left>span {
     font-size: 18px;
     font-weight: bold;
+}
+
+.count-info {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.count-item {
+    font-size: 14px;
+    color: #606266;
+}
+
+.count-number {
+    font-weight: 600;
+}
+
+.count-number.main {
+    color: #67c23a;
+}
+
+.count-number.gift {
+    color: #e6a23c;
 }
 
 .value-info {
@@ -150,6 +243,27 @@ const handleRemove = (index: number) => {
     border-top: 1px solid #eee;
     display: flex;
     align-items: center;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.pagination-wrapper {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.total-info {
+    font-size: 14px;
+    color: #606266;
+}
+
+.limit-warning {
+    color: #f56c6c;
+    font-weight: 500;
 }
 
 :deep(.el-table) {

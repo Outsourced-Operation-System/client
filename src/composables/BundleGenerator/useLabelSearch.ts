@@ -1,4 +1,5 @@
 import { ref } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
 
 /**
  * 标签搜索 Composable
@@ -13,6 +14,14 @@ export function useLabelSearch() {
   const productTypeLoading = ref(false);
   const bySkuLoading = ref(false);
   const fragranceLoading = ref(false);
+
+  // 字段名称映射
+  const fieldNameMap: Record<string, string> = {
+    category: "分类",
+    productType: "品类",
+    bySku: "By-SKU",
+    fragrance: "香型",
+  };
 
   // 搜索标签
   const searchLabels = async (field: string, query: string) => {
@@ -67,6 +76,78 @@ export function useLabelSearch() {
     }
   };
 
+  // 删除标签
+  const deleteLabel = async (field: string, value: string) => {
+    try {
+      await ElMessageBox.confirm(
+        `确定要删除${fieldNameMap[field]}标签"${value}"吗？`,
+        "删除确认",
+        {
+          confirmButtonText: "确定",
+          cancelButtonText: "取消",
+          type: "warning",
+        }
+      );
+
+      const res = await (window as any).electronAPI.deleteLabel(field, value);
+
+      if (res.success) {
+        ElMessage.success("删除成功");
+        // 刷新列表
+        await searchLabels(field, "");
+      } else {
+        ElMessage.error(res.error || "删除失败");
+      }
+    } catch (e: any) {
+      if (e !== "cancel") {
+        console.error("删除标签失败:", e);
+        ElMessage.error("删除失败");
+      }
+    }
+  };
+
+  // 新增标签
+  const addLabel = async (field: string) => {
+    try {
+      const { value: newValue } = await ElMessageBox.prompt(
+        `请输入新的${fieldNameMap[field]}标签`,
+        "新增标签",
+        {
+          confirmButtonText: "确定",
+          cancelButtonText: "取消",
+          inputPattern: /\S+/,
+          inputErrorMessage: "标签不能为空",
+        }
+      );
+
+      if (!newValue || !newValue.trim()) {
+        return;
+      }
+
+      const trimmedValue = newValue.trim();
+
+      const res = await (window as any).electronAPI.addLabel(
+        field,
+        trimmedValue
+      );
+
+      if (res.success) {
+        ElMessage.success("添加成功");
+        // 刷新列表
+        await searchLabels(field, "");
+      } else if (res.exists) {
+        ElMessage.warning("该标签已存在");
+      } else {
+        ElMessage.error(res.error || "添加失败");
+      }
+    } catch (e: any) {
+      if (e !== "cancel") {
+        console.error("添加标签失败:", e);
+        ElMessage.error("添加失败");
+      }
+    }
+  };
+
   return {
     categories,
     productTypes,
@@ -77,5 +158,7 @@ export function useLabelSearch() {
     bySkuLoading,
     fragranceLoading,
     searchLabels,
+    deleteLabel,
+    addLabel,
   };
 }

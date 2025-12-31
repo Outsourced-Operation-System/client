@@ -11,15 +11,10 @@
 
             <!-- 货组表格 -->
             <BundleTable :bundle-list="bundleList.bundleList.value" :loading="bundleList.loading.value"
-                @delete="handleDelete" @export="handleExport" @selection-change="bundleList.handleSelectionChange"
-                @page-size-change="handlePageSizeChange" />
-
-            <!-- 分页 -->
-            <div class="pagination-container">
-                <el-pagination background layout="prev, pager, next, total" :current-page="bundleList.currentPage.value"
-                    :page-size="bundleList.pageSize.value" :total="bundleList.total.value"
-                    @current-change="handlePageChange" />
-            </div>
+                :current-page="bundleList.currentPage.value" :page-size="bundleList.pageSize.value"
+                :total="bundleList.total.value" @delete="handleDelete" @export="handleExport"
+                @selection-change="bundleList.handleSelectionChange" @update:current-page="handlePageChange"
+                @update:page-size="handlePageSizeChange" />
         </el-card>
     </div>
 </template>
@@ -55,17 +50,15 @@ const handleReset = () => {
 
 // 翻页
 const handlePageChange = (page: number) => {
-    bundleList.handlePageChange(page)
+    bundleList.currentPage.value = page
     bundleList.fetchBundles(filter.getFilters())
 }
 
 // 处理每页大小变化
 const handlePageSizeChange = (newPageSize: number) => {
-    if (bundleList.pageSize.value !== newPageSize) {
-        bundleList.pageSize.value = newPageSize
-        bundleList.currentPage.value = 1
-        bundleList.fetchBundles(filter.getFilters())
-    }
+    bundleList.pageSize.value = newPageSize
+    bundleList.currentPage.value = 1
+    bundleList.fetchBundles(filter.getFilters())
 }
 
 // 删除单个货组
@@ -119,13 +112,6 @@ onActivated(() => {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-}
-
-.pagination-container {
-    margin-top: 20px;
-    display: flex;
-    justify-content: flex-end;
-    flex-shrink: 0;
 }
 
 /* 模块标题 */

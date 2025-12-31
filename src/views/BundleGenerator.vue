@@ -35,7 +35,8 @@
                 @search-category="(q: string) => labels.searchLabels('category', q)"
                 @search-product-type="(q: string) => labels.searchLabels('productType', q)"
                 @search-by-sku="(q: string) => labels.searchLabels('bySku', q)"
-                @search-fragrance="(q: string) => labels.searchLabels('fragrance', q)" />
+                @search-fragrance="(q: string) => labels.searchLabels('fragrance', q)"
+                @delete-label="labels.deleteLabel" @add-label="labels.addLabel" />
         </el-row>
 
         <!-- 展开按钮 -->
