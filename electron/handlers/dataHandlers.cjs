@@ -1060,6 +1060,128 @@ function registerDataHandlers() {
       return { success: false, error: error.message };
     }
   });
+
+  // 导出标签表
+  ipcMain.handle("db:export-labels", async () => {
+    try {
+      const db = getDatabase();
+      const stmt = db.prepare("SELECT * FROM labels");
+      const rows = stmt.all();
+
+      // 按照字段分组数据
+      const categoryData = [];
+      const productTypeData = [];
+      const bySkuData = [];
+      const fragranceData = [];
+
+      rows.forEach((row) => {
+        if (row.category && row.category.trim() !== "") {
+          categoryData.push(row.category);
+        }
+        if (row.product_type && row.product_type.trim() !== "") {
+          productTypeData.push(row.product_type);
+        }
+        if (row.by_sku && row.by_sku.trim() !== "") {
+          bySkuData.push(row.by_sku);
+        }
+        if (row.fragrance && row.fragrance.trim() !== "") {
+          fragranceData.push(row.fragrance);
+        }
+      });
+
+      // 找出最大长度
+      const maxLength = Math.max(
+        categoryData.length,
+        productTypeData.length,
+        bySkuData.length,
+        fragranceData.length
+      );
+
+      // 构建导出数据
+      const exportData = [];
+      for (let i = 0; i < maxLength; i++) {
+        exportData.push({
+          分类: categoryData[i] || "",
+          品类: productTypeData[i] || "",
+          "品类By-sku": bySkuData[i] || "",
+          香型: fragranceData[i] || "",
+        });
+      }
+
+      const ws = xlsx.utils.json_to_sheet(exportData);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, "Labels");
+
+      const { filePath } = await dialog.showSaveDialog({
+        title: "导出标签表",
+        defaultPath: `labels_export_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`,
+        filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
+      });
+
+      if (filePath) {
+        xlsx.writeFile(wb, filePath);
+        return { success: true, filePath, count: rows.length };
+      } else {
+        return { success: false, error: "用户取消了保存" };
+      }
+    } catch (error) {
+      console.error("Export labels error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 获取所有标签
+  ipcMain.handle("db:get-all-labels", async () => {
+    try {
+      const db = getDatabase();
+      const stmt = db.prepare("SELECT * FROM labels");
+      const rows = stmt.all();
+
+      // 按字段分组
+      const labels = {
+        category: [],
+        productType: [],
+        bySku: [],
+        fragrance: [],
+      };
+
+      rows.forEach((row) => {
+        if (row.category && row.category.trim() !== "") {
+          labels.category.push({
+            id: row.id,
+            value: row.category,
+            updatedAt: row.updated_at,
+          });
+        }
+        if (row.product_type && row.product_type.trim() !== "") {
+          labels.productType.push({
+            id: row.id,
+            value: row.product_type,
+            updatedAt: row.updated_at,
+          });
+        }
+        if (row.by_sku && row.by_sku.trim() !== "") {
+          labels.bySku.push({
+            id: row.id,
+            value: row.by_sku,
+            updatedAt: row.updated_at,
+          });
+        }
+        if (row.fragrance && row.fragrance.trim() !== "") {
+          labels.fragrance.push({
+            id: row.id,
+            value: row.fragrance,
+            updatedAt: row.updated_at,
+          });
+        }
+      });
+
+      return { success: true, labels };
+    } catch (error) {
+      console.error("Get all labels error:", error);
+      return { success: false, error: error.message };
+    }
+  });
 }
 
 module.exports = {

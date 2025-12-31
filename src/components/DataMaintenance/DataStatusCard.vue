@@ -24,6 +24,12 @@
             </div>
             <div class="actions mt-20">
                 <div class="button-row">
+                    <el-button type="primary" :icon="Download" @click="emit('exportLabels')" size="large"
+                        class="action-button">导出标签表</el-button>
+                    <el-button type="primary" :icon="Setting" @click="emit('manageLabels')" size="large"
+                        class="action-button">标签表管理</el-button>
+                </div>
+                <div class="button-row">
                     <el-button type="primary" :icon="Download" @click="emit('exportProducts')" size="large"
                         class="action-button">导出货品表</el-button>
                     <el-button type="primary" :icon="Download" @click="emit('exportInventory')" size="large"
@@ -41,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { Download } from '@element-plus/icons-vue'
+import { Download, Setting } from '@element-plus/icons-vue'
 import type { DataStats } from '@/composables/DataMaintenance'
 
 interface Props {
@@ -49,6 +55,8 @@ interface Props {
 }
 
 interface Emits {
+    (e: 'exportLabels'): void
+    (e: 'manageLabels'): void
     (e: 'exportProducts'): void
     (e: 'exportInventory'): void
     (e: 'clearProducts'): void
@@ -117,7 +125,7 @@ const emit = defineEmits<Emits>()
 }
 
 .status-card {
-    flex: 5;
+    flex: 5.6;
     display: flex;
     flex-direction: column;
 }

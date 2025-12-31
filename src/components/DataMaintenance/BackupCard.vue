@@ -50,7 +50,7 @@ const emit = defineEmits<Emits>()
 }
 
 .backup-card {
-    flex: 4;
+    flex: 3.4;
     display: flex;
     flex-direction: column;
 }

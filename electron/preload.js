@@ -60,6 +60,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   exportBundles: () => ipcRenderer.invoke("db:export-bundles"),
   exportProducts: () => ipcRenderer.invoke("db:export-products"),
   exportInventory: () => ipcRenderer.invoke("db:export-inventory"),
+  exportLabels: () => ipcRenderer.invoke("db:export-labels"),
   clearProducts: () => ipcRenderer.invoke("db:clear-products"),
   clearInventory: () => ipcRenderer.invoke("db:clear-inventory"),
   // 备份相关
@@ -74,6 +75,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   searchLabels: (field, keyword) =>
     ipcRenderer.invoke("db:search-labels", field, keyword),
   getLabelValues: (field) => ipcRenderer.invoke("db:get-label-values", field),
+  getAllLabels: () => ipcRenderer.invoke("db:get-all-labels"),
   deleteLabel: (field, value) =>
     ipcRenderer.invoke("db:delete-label", field, value),
   addLabel: (field, value) => ipcRenderer.invoke("db:add-label", field, value),

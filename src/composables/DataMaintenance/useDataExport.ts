@@ -1,7 +1,7 @@
 import { ElMessage } from "element-plus";
 /**
  * 数据导出 Composable
- * 负责货品数据和库存数据的导出
+ * 负责货品数据、库存数据和标签数据的导出
  */
 export function useDataExport() {
   const handleExportProducts = async () => {
@@ -38,8 +38,26 @@ export function useDataExport() {
     }
   };
 
+  const handleExportLabels = async () => {
+    try {
+      const res = await (window as any).electronAPI.exportLabels();
+      if (res.success) {
+        ElMessage.success(`成功导出 ${res.count} 条标签记录到 ${res.filePath}`);
+      } else {
+        if (res.error !== "用户取消了保存") {
+          console.error("导出标签失败:", res.error);
+          ElMessage.error("导出标签失败: " + (res.error || "未知错误"));
+        }
+      }
+    } catch (e: any) {
+      console.error("导出标签出错:", e);
+      ElMessage.error("导出标签出错: " + (e?.message || String(e)));
+    }
+  };
+
   return {
     handleExportProducts,
     handleExportInventory,
+    handleExportLabels,
   };
 }

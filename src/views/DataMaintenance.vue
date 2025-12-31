@@ -10,9 +10,9 @@
 
             <!-- 数据状态与备份区域 -->
             <el-col :span="12" class="right-column">
-                <DataStatusCard :stats="stats" @export-products="handleExportProducts"
-                    @export-inventory="handleExportInventory" @clear-products="confirmClearProducts"
-                    @clear-inventory="confirmClearInventory" />
+                <DataStatusCard :stats="stats" @export-labels="handleExportLabels" @manage-labels="showLabelManagement"
+                    @export-products="handleExportProducts" @export-inventory="handleExportInventory"
+                    @clear-products="confirmClearProducts" @clear-inventory="confirmClearInventory" />
 
                 <BackupCard :last-backup-time="stats.lastBackupTime" @backup="confirmBackup"
                     @show-backup-list="showBackupList" />
@@ -70,6 +70,10 @@
                 { text: '此操作不可撤销！' },
                 { text: `备份时间：${selectedBackup?.datetime || ''}`, highlight: true }
             ]" @confirm="handleDeleteBackup" />
+
+        <!-- 标签表管理对话框 -->
+        <LabelManagementDialog v-model="labelManagementVisible" :labels="labels" @add-label="handleAddLabel"
+            @delete-label="handleDeleteLabel" @refresh="fetchLabels" />
     </div>
 </template>
 
@@ -81,6 +85,7 @@ import BackupCard from '@/components/DataMaintenance/BackupCard.vue'
 import UploadModeDialog from '@/components/DataMaintenance/UploadModeDialog.vue'
 import ConfirmDialog from '@/components/DataMaintenance/ConfirmDialog.vue'
 import BackupListDialog from '@/components/DataMaintenance/BackupListDialog.vue'
+import LabelManagementDialog from '@/components/DataMaintenance/LabelManagementDialog.vue'
 
 // 引入组合式函数
 import {
@@ -88,7 +93,8 @@ import {
     useDataUpload,
     useDataExport,
     useDataClear,
-    useBackup
+    useBackup,
+    useLabelManagement
 } from '@/composables/DataMaintenance'
 
 // 使用数据统计
@@ -108,7 +114,7 @@ const {
 } = useDataUpload(fetchStats)
 
 // 使用数据导出
-const { handleExportProducts, handleExportInventory } = useDataExport()
+const { handleExportProducts, handleExportInventory, handleExportLabels } = useDataExport()
 
 // 使用数据清除
 const {
@@ -136,6 +142,16 @@ const {
     confirmDeleteBackup,
     handleDeleteBackup
 } = useBackup(fetchStats)
+
+// 使用标签管理功能
+const {
+    labelManagementVisible,
+    labels,
+    fetchLabels,
+    showLabelManagement,
+    handleAddLabel,
+    handleDeleteLabel
+} = useLabelManagement()
 </script>
 
 <style scoped>
