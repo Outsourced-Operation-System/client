@@ -415,12 +415,12 @@ function registerBundleHandlers() {
   ipcMain.handle("db:get-today-bundle-count", async () => {
     try {
       const db = getDatabase();
-      const dateStr = dayjs().format("YYYYMMDD");
+      // 查询所有以BD开头的虚拟编码（不带Gbox_前缀）
       const countResult = db
         .prepare(
-          `SELECT COUNT(*) as count FROM bundles WHERE virtual_code LIKE ?`
+          `SELECT COUNT(*) as count FROM bundles WHERE virtual_code LIKE 'BD%' OR virtual_code LIKE 'Gbox_BD%'`
         )
-        .get(`BD${dateStr}%`);
+        .get();
       return { count: countResult ? countResult.count : 0 };
     } catch (error) {
       console.error("Get today bundle count error:", error);
