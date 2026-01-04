@@ -67,20 +67,7 @@ export function useBundleOperations() {
       }
     }
   };
-  // 导出单个货组
-  const handleExport = async (row: BundleRecord) => {
-    try {
-      const res = await (window as any).electronAPI.exportBundle(row.id);
-      if (res && res.success) {
-        ElMessage.success("导出成功");
-      } else {
-        ElMessage.error(res?.message || "导出失败");
-      }
-    } catch (e) {
-      console.error("导出出错:", e);
-      ElMessage.error("导出出错");
-    }
-  };
+
   // 批量导出货组
   const handleBatchExport = async (bundles: BundleRecord[]) => {
     if (bundles.length === 0) {
@@ -106,7 +93,6 @@ export function useBundleOperations() {
   return {
     handleDelete,
     handleBatchDelete,
-    handleExport,
     handleBatchExport,
   };
 }

@@ -74,7 +74,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     'delete': [row: BundleRecord]
-    'export': [row: BundleRecord]
     'selectionChange': [selection: BundleRecord[]]
     'update:currentPage': [page: number]
     'update:pageSize': [size: number]

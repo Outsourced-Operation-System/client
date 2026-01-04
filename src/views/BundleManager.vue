@@ -12,7 +12,7 @@
             <!-- 货组表格 -->
             <BundleTable :bundle-list="bundleList.bundleList.value" :loading="bundleList.loading.value"
                 :current-page="bundleList.currentPage.value" :page-size="bundleList.pageSize.value"
-                :total="bundleList.total.value" @delete="handleDelete" @export="handleExport"
+                :total="bundleList.total.value" @delete="handleDelete"
                 @selection-change="bundleList.handleSelectionChange" @update:current-page="handlePageChange"
                 @update:page-size="handlePageSizeChange" />
         </el-card>
@@ -66,11 +66,6 @@ const handleDelete = (row: any) => {
     operations.handleDelete(row, () => {
         bundleList.fetchBundles(filter.getFilters())
     })
-}
-
-// 导出单个货组
-const handleExport = (row: any) => {
-    operations.handleExport(row)
 }
 
 // 批量导出

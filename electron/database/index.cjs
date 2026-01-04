@@ -135,7 +135,13 @@ function createTables() {
       declared_content TEXT,
       type TEXT,
       quantity INTEGER DEFAULT 1,
-      inventory_id INTEGER
+      inventory_id INTEGER,
+      shelf_life TEXT,
+      item_size TEXT,
+      net_weight TEXT,
+      country_of_origin TEXT,
+      width TEXT,
+      height TEXT
     );
   `);
 

@@ -103,8 +103,9 @@ function registerBundleHandlers() {
         const insertItem = db.prepare(`
           INSERT INTO bundle_items (
             bundle_id, sku, article_code, tu, product_name_cn, product_name_en,
-            cn_current_price, qty_available, remaining_months, declared_content, type, quantity, inventory_id
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            cn_current_price, qty_available, remaining_months, declared_content, type, quantity, inventory_id,
+            shelf_life, item_size, net_weight, country_of_origin, width, height
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         // 查找要扣减库存的 inventory 记录 id
@@ -112,16 +113,49 @@ function registerBundleHandlers() {
           SELECT id FROM inventory WHERE sku = ? AND qty_available > 0 LIMIT 1
         `);
 
+        // 从 goods 表获取商品详细信息
+        const getGoodsInfo = db.prepare(`
+          SELECT shelf_life, item_size, net_weight, country_of_origin FROM goods WHERE sku = ?
+        `);
+
         // 扣减库存的 SQL - 根据指定 id 更新
         const updateInventory = db.prepare(`
           UPDATE inventory SET qty_available = qty_available - 1 WHERE id = ?
         `);
+
+        // 解析 item_size 获取宽和高的函数
+        function parseItemSize(itemSize) {
+          if (!itemSize || itemSize === "-" || itemSize.trim() === "") {
+            return { width: null, height: null };
+          }
+          // 格式: "宽 x 高 x 长" 或 "150 x 200 x 100"
+          const parts = itemSize.split("x").map((p) => p.trim());
+          if (parts.length >= 2) {
+            return {
+              width: parts[1] || null,
+              height: parts[2] || null,
+            };
+          }
+          return { width: null, height: null };
+        }
 
         for (const item of items) {
           // 查找要扣减的 inventory 记录
           const sku = item.sku || item.tu;
           const inventoryRecord = findInventory.get(sku);
           const inventoryId = inventoryRecord ? inventoryRecord.id : null;
+
+          // 从 goods 表获取商品信息
+          const goodsInfo = getGoodsInfo.get(sku);
+          const shelfLife = goodsInfo ? goodsInfo.shelf_life : null;
+          const itemSize = goodsInfo ? goodsInfo.item_size : null;
+          const netWeight = goodsInfo ? goodsInfo.net_weight : null;
+          const countryOfOrigin = goodsInfo
+            ? goodsInfo.country_of_origin
+            : null;
+
+          // 解析宽和高
+          const { width, height } = parseItemSize(itemSize);
 
           insertItem.run(
             bundleId,
@@ -136,7 +170,13 @@ function registerBundleHandlers() {
             item.declared_content || "",
             item.type,
             1,
-            inventoryId
+            inventoryId,
+            shelfLife,
+            itemSize,
+            netWeight,
+            countryOfOrigin,
+            width,
+            height
           );
 
           // 扣减库存（每个商品扣减1）
@@ -443,7 +483,7 @@ function registerBundleHandlers() {
       // 弹出保存对话框
       const { filePath } = await dialog.showSaveDialog({
         title: "批量导出货组",
-        defaultPath: `货组批量导出_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`,
+        defaultPath: `货组导出_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`,
         filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
       });
 
@@ -451,59 +491,164 @@ function registerBundleHandlers() {
         return { success: false, error: "用户取消" };
       }
 
-      // 准备导出数据 - 每行对应一个虚拟编码
-      const exportData = [];
+      // 准备 SKU 商品主档数据
+      const skuMainData = [];
+      // 准备商品规格数据
+      const specData = [];
+
+      let virtualTableIndex = 1; // 虚拟表格编号
 
       for (const id of ids) {
         // 获取货组信息
         const bundle = db.prepare(`SELECT * FROM bundles WHERE id = ?`).get(id);
-
         if (!bundle) continue;
 
-        exportData.push({
-          虚拟编码: bundle.virtual_code,
-          货组名称: bundle.name,
-          创建日期: bundle.created_at.split(" ")[0],
-          结束日期: bundle.end_date,
-          用途: bundle.usage_type === "cooperation" ? "合作" : "自营",
-          总货值: bundle.total_value,
-          主品货值: bundle.main_value,
-          赠品货值: bundle.gift_value,
-          分类: bundle.category,
-          品类: bundle.product_type,
-          "By-sku": bundle.by_sku,
-          香型: bundle.fragrance,
-          状态: bundle.status,
+        // 获取货组中的所有商品（主品和赠品）
+        const items = db
+          .prepare(
+            `SELECT * FROM bundle_items WHERE bundle_id = ? ORDER BY type DESC, id ASC`
+          )
+          .all(id);
+
+        if (items.length === 0) continue;
+
+        // 获取第一个主品的信息（用于保质期、原产地、尺码）
+        const firstMainItem = items.find((item) => item.type === "main");
+        const shelfLife = firstMainItem ? firstMainItem.shelf_life || "" : "";
+        const countryOfOrigin = firstMainItem
+          ? firstMainItem.country_of_origin || ""
+          : "";
+        const itemSize = firstMainItem ? firstMainItem.item_size || "" : "";
+
+        // 构建商品全称：主品+赠品，用"+"连接
+        const mainItems = items.filter((item) => item.type === "main");
+        const giftItems = items.filter((item) => item.type === "gift");
+        const allProductNames = [
+          ...mainItems.map((item) => item.product_name_cn),
+          ...giftItems.map((item) => item.product_name_cn),
+        ];
+        const fullProductName = allProductNames.join(" + ");
+
+        // SKU 商品主档行数据
+        skuMainData.push({
+          虚拟表格编号: virtualTableIndex,
+          SPU编码: "",
+          商品编码: bundle.virtual_code,
+          商品名称: bundle.name,
+          商品全称: fullProductName,
+          品牌名称: "Rituals",
+          "零售价（元）": bundle.total_value,
+          "标准进价（元）": bundle.total_value,
+          商品分类路径: "",
+          商品类型: "虚拟套组",
+          拆包单位: "",
+          组包单位: "",
+          厂商货号: "",
+          外部系统编码: "",
+          "新包装 SKU 编码": "",
+          备注: "",
+          保质期: shelfLife,
+          原产地: countryOfOrigin,
+          商品单位: "个",
+          采购单位: "个",
+          商品状态: "启用",
+          颜色: "",
+          尺码: itemSize,
+          款色码: "",
+          规格: "",
+          "是否 ERP 商品": "否",
+          是否危险品: "否",
+          是否消耗品: "否",
+          图片: "",
         });
+
+        // 商品规格：每个商品一行
+        for (const item of items) {
+          specData.push({
+            虚拟主表编号: virtualTableIndex,
+            商品条码: "",
+            商品单位: "个",
+            "EA 转换数量": "",
+            标准售价: bundle.total_value,
+            标准进价: "",
+            "毛重（KG）": "",
+            "净重（KG）": item.net_weight || "",
+            "材积（CM^3）": "",
+            "体积（CM^3）": item.item_size || "",
+            "宽（CM）": item.width || "",
+            高: item.height || "",
+            单位状态: "有效",
+          });
+        }
+
+        virtualTableIndex++;
       }
 
       // 创建工作簿
       const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(exportData);
 
+      // 创建 SKU 商品主档 sheet
+      const wsMain = XLSX.utils.json_to_sheet(skuMainData);
       // 设置列宽
-      ws["!cols"] = [
-        { wch: 15 }, // 虚拟编码
-        { wch: 20 }, // 货组名称
-        { wch: 12 }, // 创建日期
-        { wch: 12 }, // 结束日期
-        { wch: 8 }, // 用途
-        { wch: 12 }, // 总货值
-        { wch: 12 }, // 主品货值
-        { wch: 12 }, // 赠品货值
-        { wch: 12 }, // 分类
-        { wch: 12 }, // 品类
-        { wch: 12 }, // By-sku
-        { wch: 12 }, // 香型
-        { wch: 10 }, // 状态
+      wsMain["!cols"] = [
+        { wch: 12 }, // 虚拟表格编号
+        { wch: 10 }, // SPU编码
+        { wch: 15 }, // 商品编码
+        { wch: 30 }, // 商品名称
+        { wch: 50 }, // 商品全称
+        { wch: 10 }, // 品牌名称
+        { wch: 12 }, // 零售价（元）
+        { wch: 12 }, // 标准进价（元）
+        { wch: 15 }, // 商品分类路径
+        { wch: 12 }, // 商品类型
+        { wch: 10 }, // 拆包单位
+        { wch: 10 }, // 组包单位
+        { wch: 12 }, // 厂商货号
+        { wch: 15 }, // 外部系统编码
+        { wch: 18 }, // 新包装 SKU 编码
+        { wch: 15 }, // 备注
+        { wch: 15 }, // 保质期
+        { wch: 12 }, // 原产地
+        { wch: 10 }, // 商品单位
+        { wch: 10 }, // 采购单位
+        { wch: 10 }, // 商品状态
+        { wch: 10 }, // 颜色
+        { wch: 15 }, // 尺码
+        { wch: 10 }, // 款色码
+        { wch: 10 }, // 规格
+        { wch: 15 }, // 是否 ERP 商品
+        { wch: 12 }, // 是否危险品
+        { wch: 12 }, // 是否消耗品
+        { wch: 10 }, // 图片
       ];
+      XLSX.utils.book_append_sheet(wb, wsMain, "SKU商品主档");
 
-      XLSX.utils.book_append_sheet(wb, ws, "货组数据");
+      // 创建商品规格 sheet
+      const wsSpec = XLSX.utils.json_to_sheet(specData);
+      // 设置列宽
+      wsSpec["!cols"] = [
+        { wch: 12 }, // 虚拟主表编号
+        { wch: 15 }, // 商品条码
+        { wch: 10 }, // 商品单位
+        { wch: 15 }, // EA 转换数量
+        { wch: 12 }, // 标准售价
+        { wch: 12 }, // 标准进价
+        { wch: 12 }, // 毛重（KG）
+        { wch: 12 }, // 净重（KG）
+        { wch: 15 }, // 材积（CM^3）
+        { wch: 20 }, // 体积（CM^3）
+        { wch: 10 }, // 宽（CM）
+        { wch: 10 }, // 高
+        { wch: 10 }, // 单位状态
+      ];
+      XLSX.utils.book_append_sheet(wb, wsSpec, "商品规格");
+
+      // 写入文件
       XLSX.writeFile(wb, filePath);
 
       return {
         success: true,
-        count: exportData.length,
+        count: skuMainData.length,
         filePath,
       };
     } catch (error) {

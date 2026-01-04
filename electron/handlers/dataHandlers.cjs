@@ -575,9 +575,7 @@ function registerDataHandlers() {
 
       const { filePath } = await dialog.showSaveDialog({
         title: "导出货品表",
-        defaultPath: `products_export_${dayjs().format(
-          "YYYYMMDD_HHmmss"
-        )}.xlsx`,
+        defaultPath: `货品导出_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`,
         filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
       });
 
@@ -640,9 +638,7 @@ function registerDataHandlers() {
 
       const { filePath } = await dialog.showSaveDialog({
         title: "导出库存表",
-        defaultPath: `inventory_export_${dayjs().format(
-          "YYYYMMDD_HHmmss"
-        )}.xlsx`,
+        defaultPath: `库存导出_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`,
         filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
       });
 
@@ -657,12 +653,6 @@ function registerDataHandlers() {
       return { success: false, error: error.message };
     }
   });
-
-  // 导出货组（占位实现）
-  ipcMain.handle("db:export-bundles", async () => {
-    return { success: true };
-  });
-
   // 清空货品表
   ipcMain.handle("db:clear-products", async () => {
     try {
@@ -1114,7 +1104,7 @@ function registerDataHandlers() {
 
       const { filePath } = await dialog.showSaveDialog({
         title: "导出标签表",
-        defaultPath: `labels_export_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`,
+        defaultPath: `标签导出_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`,
         filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
       });
 

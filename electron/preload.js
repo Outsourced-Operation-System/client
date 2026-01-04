@@ -49,7 +49,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   deleteBundle: (id) => ipcRenderer.invoke("db:delete-bundle", id),
   batchDeleteBundles: (ids) =>
     ipcRenderer.invoke("db:batch-delete-bundles", ids),
-  exportBundle: (id) => ipcRenderer.invoke("db:export-bundle", id),
   batchExportBundles: (ids) =>
     ipcRenderer.invoke("db:batch-export-bundles", ids),
   updateBundleStatus: (id, status) =>
@@ -57,7 +56,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   updateBundle: (bundleData) =>
     ipcRenderer.invoke("db:update-bundle", bundleData),
   getStats: () => ipcRenderer.invoke("db:get-stats"),
-  exportBundles: () => ipcRenderer.invoke("db:export-bundles"),
   exportProducts: () => ipcRenderer.invoke("db:export-products"),
   exportInventory: () => ipcRenderer.invoke("db:export-inventory"),
   exportLabels: () => ipcRenderer.invoke("db:export-labels"),
