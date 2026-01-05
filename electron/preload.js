@@ -49,8 +49,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   deleteBundle: (id) => ipcRenderer.invoke("db:delete-bundle", id),
   batchDeleteBundles: (ids) =>
     ipcRenderer.invoke("db:batch-delete-bundles", ids),
-  batchExportBundles: (ids) =>
-    ipcRenderer.invoke("db:batch-export-bundles", ids),
+  batchExportBundles: (ids, exportType) =>
+    ipcRenderer.invoke("db:batch-export-bundles", ids, exportType),
   updateBundleStatus: (id, status) =>
     ipcRenderer.invoke("db:update-bundle-status", id, status),
   updateBundle: (bundleData) =>

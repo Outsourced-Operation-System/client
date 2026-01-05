@@ -16,14 +16,18 @@
                 @selection-change="bundleList.handleSelectionChange" @update:current-page="handlePageChange"
                 @update:page-size="handlePageSizeChange" />
         </el-card>
+
+        <!-- 导出选项对话框 -->
+        <ExportOptionsDialog ref="exportDialogRef" @confirm="handleExportConfirm" />
     </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onActivated } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import FilterSection from '@/components/BundleManager/FilterSection.vue'
 import BatchOperations from '@/components/BundleManager/BatchOperations.vue'
 import BundleTable from '@/components/BundleManager/BundleTable.vue'
+import ExportOptionsDialog from '@/components/BundleManager/ExportOptionsDialog.vue'
 import { useBundleFilter, useBundleList, useBundleOperations } from '@/composables/BundleManager'
 
 // 筛选
@@ -34,6 +38,9 @@ const bundleList = useBundleList()
 
 // 操作
 const operations = useBundleOperations()
+
+// 导出对话框引用
+const exportDialogRef = ref()
 
 // 搜索
 const handleSearch = () => {
@@ -68,9 +75,17 @@ const handleDelete = (row: any) => {
     })
 }
 
-// 批量导出
+// 批量导出 - 打开选项对话框
 const handleBatchExport = () => {
-    operations.handleBatchExport(bundleList.selectedBundles.value)
+    if (bundleList.selectedBundles.value.length === 0) {
+        return
+    }
+    exportDialogRef.value?.open()
+}
+
+// 确认导出
+const handleExportConfirm = (options: { exportSku: boolean; exportVirtual: boolean }) => {
+    operations.handleBatchExport(bundleList.selectedBundles.value, options)
 }
 
 // 批量删除

@@ -73,8 +73,8 @@ export function useBundleItems() {
         );
         bundleItems.value.forEach((item) => {
           const newStock = stockMap.get(item.tu);
-          if (newStock !== undefined) {
-            item.qty_available = newStock;
+          if (newStock !== undefined && newStock !== null) {
+            item.qty_available = Number(newStock);
           }
         });
       }

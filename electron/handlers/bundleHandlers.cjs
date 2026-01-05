@@ -474,188 +474,327 @@ function registerBundleHandlers() {
   });
 
   // 批量导出货组
-  ipcMain.handle("db:batch-export-bundles", async (event, ids) => {
-    try {
-      const { dialog } = require("electron");
-      const XLSX = require("xlsx");
-      const db = getDatabase();
+  ipcMain.handle(
+    "db:batch-export-bundles",
+    async (event, ids, exportType = "sku") => {
+      console.log("==== 批量导出开始 ====");
+      console.log("接收到的参数 - ids:", ids);
+      console.log("接收到的参数 - exportType:", exportType);
 
-      // 弹出保存对话框
-      const { filePath } = await dialog.showSaveDialog({
-        title: "批量导出货组",
-        defaultPath: `货组导出_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`,
-        filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
-      });
+      try {
+        const { dialog } = require("electron");
+        const XLSX = require("xlsx");
+        const db = getDatabase();
 
-      if (!filePath) {
-        return { success: false, error: "用户取消" };
-      }
-
-      // 准备 SKU 商品主档数据
-      const skuMainData = [];
-      // 准备商品规格数据
-      const specData = [];
-
-      let virtualTableIndex = 1; // 虚拟表格编号
-
-      for (const id of ids) {
-        // 获取货组信息
-        const bundle = db.prepare(`SELECT * FROM bundles WHERE id = ?`).get(id);
-        if (!bundle) continue;
-
-        // 获取货组中的所有商品（主品和赠品）
-        const items = db
-          .prepare(
-            `SELECT * FROM bundle_items WHERE bundle_id = ? ORDER BY type DESC, id ASC`
-          )
-          .all(id);
-
-        if (items.length === 0) continue;
-
-        // 获取第一个主品的信息（用于保质期、原产地、尺码）
-        const firstMainItem = items.find((item) => item.type === "main");
-        const shelfLife = firstMainItem ? firstMainItem.shelf_life || "" : "";
-        const countryOfOrigin = firstMainItem
-          ? firstMainItem.country_of_origin || ""
-          : "";
-        const itemSize = firstMainItem ? firstMainItem.item_size || "" : "";
-
-        // 构建商品全称：主品+赠品，用"+"连接
-        const mainItems = items.filter((item) => item.type === "main");
-        const giftItems = items.filter((item) => item.type === "gift");
-        const allProductNames = [
-          ...mainItems.map((item) => item.product_name_cn),
-          ...giftItems.map((item) => item.product_name_cn),
-        ];
-        const fullProductName = allProductNames.join(" + ");
-
-        // SKU 商品主档行数据
-        skuMainData.push({
-          虚拟表格编号: virtualTableIndex,
-          SPU编码: "",
-          商品编码: bundle.virtual_code,
-          商品名称: bundle.name,
-          商品全称: fullProductName,
-          品牌名称: "Rituals",
-          "零售价（元）": bundle.total_value,
-          "标准进价（元）": bundle.total_value,
-          商品分类路径: "",
-          商品类型: "虚拟套组",
-          拆包单位: "",
-          组包单位: "",
-          厂商货号: "",
-          外部系统编码: "",
-          "新包装 SKU 编码": "",
-          备注: "",
-          保质期: shelfLife,
-          原产地: countryOfOrigin,
-          商品单位: "个",
-          采购单位: "个",
-          商品状态: "启用",
-          颜色: "",
-          尺码: itemSize,
-          款色码: "",
-          规格: "",
-          "是否 ERP 商品": "否",
-          是否危险品: "否",
-          是否消耗品: "否",
-          图片: "",
-        });
-
-        // 商品规格：每个商品一行
-        for (const item of items) {
-          specData.push({
-            虚拟主表编号: virtualTableIndex,
-            商品条码: "",
-            商品单位: "个",
-            "EA 转换数量": "",
-            标准售价: bundle.total_value,
-            标准进价: "",
-            "毛重（KG）": "",
-            "净重（KG）": item.net_weight || "",
-            "材积（CM^3）": "",
-            "体积（CM^3）": item.item_size || "",
-            "宽（CM）": item.width || "",
-            高: item.height || "",
-            单位状态: "有效",
-          });
+        // 根据导出类型设置不同的文件名
+        console.log("准备导出，类型：", exportType);
+        let defaultFileName;
+        if (exportType === "sku") {
+          defaultFileName = `SKU 导出_${dayjs().format(
+            "YYYYMMDD_HHmmss"
+          )}.xlsx`;
+        } else if (exportType === "virtual") {
+          defaultFileName = `虚拟组套导出_${dayjs().format(
+            "YYYYMMDD_HHmmss"
+          )}.xlsx`;
+        } else {
+          defaultFileName = `货组导出_${dayjs().format(
+            "YYYYMMDD_HHmmss"
+          )}.xlsx`;
         }
 
-        virtualTableIndex++;
+        // 弹出保存对话框
+        const { filePath, canceled } = await dialog.showSaveDialog({
+          title: exportType === "sku" ? "导出SKU表格" : "导出虚拟组套表格",
+          defaultPath: defaultFileName,
+          filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
+        });
+
+        // 如果用户取消，返回 canceled 状态
+        if (canceled || !filePath) {
+          return { success: false, canceled: true };
+        }
+
+        console.log("Export type:", exportType);
+
+        if (exportType === "sku") {
+          // SKU 导出（原有逻辑）
+          console.log("Exporting SKU table...");
+          return await exportSkuTable(db, ids, filePath);
+        } else if (exportType === "virtual") {
+          // 虚拟组套导出
+          console.log("Exporting virtual table...");
+          return await exportVirtualTable(db, ids, filePath);
+        }
+
+        return { success: false, error: "未知的导出类型" };
+      } catch (error) {
+        console.error("Batch export bundles error:", error);
+        return { success: false, error: error.message };
+      }
+    }
+  );
+
+  // SKU 导出函数
+  async function exportSkuTable(db, ids, filePath) {
+    const XLSX = require("xlsx");
+
+    // 准备 SKU 商品主档数据
+    const skuMainData = [];
+    // 准备商品规格数据
+    const specData = [];
+
+    let virtualTableIndex = 1; // 虚拟表格编号
+
+    for (const id of ids) {
+      // 获取货组信息
+      const bundle = db.prepare(`SELECT * FROM bundles WHERE id = ?`).get(id);
+      if (!bundle) continue;
+
+      // 获取货组中的所有商品（主品和赠品）
+      const items = db
+        .prepare(
+          `SELECT * FROM bundle_items WHERE bundle_id = ? ORDER BY type DESC, id ASC`
+        )
+        .all(id);
+
+      if (items.length === 0) continue;
+
+      // 获取第一个主品的信息（用于保质期、原产地、尺码）
+      const firstMainItem = items.find((item) => item.type === "main");
+      const shelfLife = firstMainItem ? firstMainItem.shelf_life || "" : "";
+      const countryOfOrigin = firstMainItem
+        ? firstMainItem.country_of_origin || ""
+        : "";
+      const itemSize = firstMainItem ? firstMainItem.item_size || "" : "";
+
+      // 构建商品全称：主品+赠品，用"+"连接
+      const mainItems = items.filter((item) => item.type === "main");
+      const giftItems = items.filter((item) => item.type === "gift");
+      const allProductNames = [
+        ...mainItems.map((item) => item.product_name_cn),
+        ...giftItems.map((item) => item.product_name_cn),
+      ];
+      const fullProductName = allProductNames.join(" + ");
+
+      // SKU 商品主档行数据
+      skuMainData.push({
+        虚拟表格编号: virtualTableIndex,
+        SPU编码: "",
+        商品编码: bundle.virtual_code,
+        商品名称: bundle.name,
+        商品全称: fullProductName,
+        品牌名称: "Rituals",
+        "零售价（元）": bundle.total_value,
+        "标准进价（元）": bundle.total_value,
+        商品分类路径: "",
+        商品类型: "虚拟套组",
+        拆包单位: "",
+        组包单位: "",
+        厂商货号: "",
+        外部系统编码: "",
+        "新包装 SKU 编码": "",
+        备注: "",
+        保质期: shelfLife,
+        原产地: countryOfOrigin,
+        商品单位: "个",
+        采购单位: "个",
+        商品状态: "启用",
+        颜色: "",
+        尺码: itemSize,
+        款色码: "",
+        规格: "",
+        "是否 ERP 商品": "否",
+        是否危险品: "否",
+        是否消耗品: "否",
+        图片: "",
+      });
+
+      // 商品规格：每个商品一行
+      for (const item of items) {
+        specData.push({
+          虚拟主表编号: virtualTableIndex,
+          商品条码: "",
+          商品单位: "个",
+          "EA 转换数量": "",
+          标准售价: bundle.total_value,
+          标准进价: "",
+          "毛重（KG）": "",
+          "净重（KG）": item.net_weight || "",
+          "材积（CM^3）": "",
+          "体积（CM^3）": item.item_size || "",
+          "宽（CM）": item.width || "",
+          高: item.height || "",
+          单位状态: "有效",
+        });
       }
 
-      // 创建工作簿
-      const wb = XLSX.utils.book_new();
-
-      // 创建 SKU 商品主档 sheet
-      const wsMain = XLSX.utils.json_to_sheet(skuMainData);
-      // 设置列宽
-      wsMain["!cols"] = [
-        { wch: 12 }, // 虚拟表格编号
-        { wch: 10 }, // SPU编码
-        { wch: 15 }, // 商品编码
-        { wch: 30 }, // 商品名称
-        { wch: 50 }, // 商品全称
-        { wch: 10 }, // 品牌名称
-        { wch: 12 }, // 零售价（元）
-        { wch: 12 }, // 标准进价（元）
-        { wch: 15 }, // 商品分类路径
-        { wch: 12 }, // 商品类型
-        { wch: 10 }, // 拆包单位
-        { wch: 10 }, // 组包单位
-        { wch: 12 }, // 厂商货号
-        { wch: 15 }, // 外部系统编码
-        { wch: 18 }, // 新包装 SKU 编码
-        { wch: 15 }, // 备注
-        { wch: 15 }, // 保质期
-        { wch: 12 }, // 原产地
-        { wch: 10 }, // 商品单位
-        { wch: 10 }, // 采购单位
-        { wch: 10 }, // 商品状态
-        { wch: 10 }, // 颜色
-        { wch: 15 }, // 尺码
-        { wch: 10 }, // 款色码
-        { wch: 10 }, // 规格
-        { wch: 15 }, // 是否 ERP 商品
-        { wch: 12 }, // 是否危险品
-        { wch: 12 }, // 是否消耗品
-        { wch: 10 }, // 图片
-      ];
-      XLSX.utils.book_append_sheet(wb, wsMain, "SKU商品主档");
-
-      // 创建商品规格 sheet
-      const wsSpec = XLSX.utils.json_to_sheet(specData);
-      // 设置列宽
-      wsSpec["!cols"] = [
-        { wch: 12 }, // 虚拟主表编号
-        { wch: 15 }, // 商品条码
-        { wch: 10 }, // 商品单位
-        { wch: 15 }, // EA 转换数量
-        { wch: 12 }, // 标准售价
-        { wch: 12 }, // 标准进价
-        { wch: 12 }, // 毛重（KG）
-        { wch: 12 }, // 净重（KG）
-        { wch: 15 }, // 材积（CM^3）
-        { wch: 20 }, // 体积（CM^3）
-        { wch: 10 }, // 宽（CM）
-        { wch: 10 }, // 高
-        { wch: 10 }, // 单位状态
-      ];
-      XLSX.utils.book_append_sheet(wb, wsSpec, "商品规格");
-
-      // 写入文件
-      XLSX.writeFile(wb, filePath);
-
-      return {
-        success: true,
-        count: skuMainData.length,
-        filePath,
-      };
-    } catch (error) {
-      console.error("Batch export bundles error:", error);
-      return { success: false, error: error.message };
+      virtualTableIndex++;
     }
-  });
+
+    // 创建工作簿
+    const wb = XLSX.utils.book_new();
+
+    // 创建 SKU 商品主档 sheet
+    const wsMain = XLSX.utils.json_to_sheet(skuMainData);
+    // 设置列宽
+    wsMain["!cols"] = [
+      { wch: 12 }, // 虚拟表格编号
+      { wch: 10 }, // SPU编码
+      { wch: 15 }, // 商品编码
+      { wch: 30 }, // 商品名称
+      { wch: 50 }, // 商品全称
+      { wch: 10 }, // 品牌名称
+      { wch: 12 }, // 零售价（元）
+      { wch: 12 }, // 标准进价（元）
+      { wch: 15 }, // 商品分类路径
+      { wch: 12 }, // 商品类型
+      { wch: 10 }, // 拆包单位
+      { wch: 10 }, // 组包单位
+      { wch: 12 }, // 厂商货号
+      { wch: 15 }, // 外部系统编码
+      { wch: 18 }, // 新包装 SKU 编码
+      { wch: 15 }, // 备注
+      { wch: 15 }, // 保质期
+      { wch: 12 }, // 原产地
+      { wch: 10 }, // 商品单位
+      { wch: 10 }, // 采购单位
+      { wch: 10 }, // 商品状态
+      { wch: 10 }, // 颜色
+      { wch: 15 }, // 尺码
+      { wch: 10 }, // 款色码
+      { wch: 10 }, // 规格
+      { wch: 15 }, // 是否 ERP 商品
+      { wch: 12 }, // 是否危险品
+      { wch: 12 }, // 是否消耗品
+      { wch: 10 }, // 图片
+    ];
+    XLSX.utils.book_append_sheet(wb, wsMain, "SKU商品主档");
+
+    // 创建商品规格 sheet
+    const wsSpec = XLSX.utils.json_to_sheet(specData);
+    // 设置列宽
+    wsSpec["!cols"] = [
+      { wch: 12 }, // 虚拟主表编号
+      { wch: 15 }, // 商品条码
+      { wch: 10 }, // 商品单位
+      { wch: 15 }, // EA 转换数量
+      { wch: 12 }, // 标准售价
+      { wch: 12 }, // 标准进价
+      { wch: 12 }, // 毛重（KG）
+      { wch: 12 }, // 净重（KG）
+      { wch: 15 }, // 材积（CM^3）
+      { wch: 20 }, // 体积（CM^3）
+      { wch: 10 }, // 宽（CM）
+      { wch: 10 }, // 高
+      { wch: 10 }, // 单位状态
+    ];
+    XLSX.utils.book_append_sheet(wb, wsSpec, "商品规格");
+
+    // 写入文件
+    XLSX.writeFile(wb, filePath);
+
+    return {
+      success: true,
+      count: skuMainData.length,
+      filePath,
+    };
+  }
+
+  // 虚拟组套导出函数
+  async function exportVirtualTable(db, ids, filePath) {
+    console.log("==== exportVirtualTable 函数开始执行 ====");
+    console.log("参数 - ids:", ids);
+    console.log("参数 - filePath:", filePath);
+
+    const XLSX = require("xlsx");
+
+    // 准备"组套商品"数据
+    const bundleData = [];
+    // 准备"组套商品明细"数据
+    const detailData = [];
+
+    let virtualTableIndex = 1; // 虚拟表格编号
+
+    for (const id of ids) {
+      // 获取货组信息
+      const bundle = db.prepare(`SELECT * FROM bundles WHERE id = ?`).get(id);
+      if (!bundle) continue;
+
+      console.log("处理货组:", bundle.virtual_code);
+
+      // 获取货组中的所有商品
+      const items = db
+        .prepare(
+          `SELECT * FROM bundle_items WHERE bundle_id = ? ORDER BY id ASC`
+        )
+        .all(id);
+
+      if (items.length === 0) continue;
+
+      console.log("货组商品数量:", items.length);
+
+      // 组套商品行数据
+      bundleData.push({
+        虚拟表格编号: virtualTableIndex,
+        组合商品编码: bundle.virtual_code,
+        组合名称: "抖音小红书",
+        生效时间: bundle.created_at,
+        失效时间: "2085年8月15日",
+      });
+
+      // 组套商品明细：每个商品一行
+      for (const item of items) {
+        detailData.push({
+          虚拟主表编号: virtualTableIndex,
+          "子品 sku 编码": item.sku,
+          数量: 1,
+          分摊比例: "",
+        });
+      }
+
+      virtualTableIndex++;
+    }
+
+    // 创建工作簿
+    const wb = XLSX.utils.book_new();
+
+    // 创建"组套商品" sheet
+    const wsBundle = XLSX.utils.json_to_sheet(bundleData);
+    wsBundle["!cols"] = [
+      { wch: 15 }, // 虚拟表格编号
+      { wch: 20 }, // 组合商品编码
+      { wch: 20 }, // 组合名称
+      { wch: 20 }, // 生效时间
+      { wch: 20 }, // 失效时间
+    ];
+    XLSX.utils.book_append_sheet(wb, wsBundle, "组套商品");
+
+    // 创建"组套商品明细" sheet
+    const wsDetail = XLSX.utils.json_to_sheet(detailData);
+    wsDetail["!cols"] = [
+      { wch: 15 }, // 虚拟主表编号
+      { wch: 20 }, // 子品 sku 编码
+      { wch: 10 }, // 数量
+      { wch: 15 }, // 分摊比例
+    ];
+    XLSX.utils.book_append_sheet(wb, wsDetail, "组套商品明细");
+
+    // 写入文件
+    console.log("虚拟组套：准备写入文件:", filePath);
+    console.log("虚拟组套：组套商品数量:", bundleData.length);
+    console.log("虚拟组套：商品明细数量:", detailData.length);
+
+    XLSX.writeFile(wb, filePath);
+
+    console.log("==== 虚拟组套导出完成 ====");
+
+    return {
+      success: true,
+      count: bundleData.length,
+      filePath,
+    };
+  }
 }
 
 module.exports = {
