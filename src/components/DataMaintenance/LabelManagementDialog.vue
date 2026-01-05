@@ -41,11 +41,11 @@
                 </div>
             </el-tab-pane>
 
-            <!-- 按SKU标签 -->
+            <!-- bySKU标签 -->
             <el-tab-pane label="品类By-sku" name="bySku">
                 <div class="label-management-section">
                     <div class="add-section">
-                        <el-input v-model="newLabels.bySku" placeholder="输入新的按SKU标签" class="input-with-button">
+                        <el-input v-model="newLabels.bySku" placeholder="输入新的bySKU标签" class="input-with-button">
                             <template #append>
                                 <el-button type="primary" @click="handleAddLabel('bySku')">添加</el-button>
                             </template>
@@ -90,7 +90,7 @@
     <!-- 添加标签确认对话框 -->
     <el-dialog v-model="addConfirmVisible" title="确认添加" width="400px">
         <p>确定要添加标签 <strong>"{{ pendingAddLabel?.value }}"</strong> 到 <strong>{{ getLabelTypeName(pendingAddLabel?.field)
-        }}</strong> 吗？</p>
+                }}</strong> 吗？</p>
         <template #footer>
             <el-button @click="addConfirmVisible = false">取消</el-button>
             <el-button type="primary" @click="confirmAddLabel">确认</el-button>
@@ -99,8 +99,9 @@
 
     <!-- 删除标签确认对话框 -->
     <el-dialog v-model="deleteConfirmVisible" title="确认删除" width="400px">
-        <p>确定要删除标签 <strong>"{{ pendingDeleteLabel?.label.value }}"</strong> 从 <strong>{{
-            getLabelTypeName(pendingDeleteLabel?.field) }}</strong> 吗？</p>
+        <p>确定要从 <strong>{{
+            getLabelTypeName(pendingDeleteLabel?.field) }}</strong> 删除标签 <strong>"{{ pendingDeleteLabel?.label.value
+                }}"</strong> 吗？</p>
         <p style="color: #f56c6c; margin-top: 10px;">此操作不可撤销！</p>
         <template #footer>
             <el-button @click="deleteConfirmVisible = false">取消</el-button>
@@ -164,7 +165,7 @@ const getLabelTypeName = (field: string | undefined) => {
     const names: Record<string, string> = {
         category: '分类',
         productType: '品类',
-        bySku: '按SKU',
+        bySku: 'bySKU',
         fragrance: '香型'
     }
     return field ? names[field] : ''

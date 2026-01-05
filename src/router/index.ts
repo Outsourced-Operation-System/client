@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from "vue-router";
 import MainLayout from "../layout/MainLayout.vue";
 import BundleGenerator from "../views/BundleGenerator.vue";
 import BundleManager from "../views/BundleManager.vue";
+import BundleProducts from "../views/BundleProducts.vue";
 import DataMaintenance from "../views/DataMaintenance.vue";
 
 const routes: Array<RouteRecordRaw> = [
@@ -22,6 +23,12 @@ const routes: Array<RouteRecordRaw> = [
         name: "BundleManager",
         component: BundleManager,
         meta: { title: "货组管理" },
+      },
+      {
+        path: "bundle-products",
+        name: "BundleProducts",
+        component: BundleProducts,
+        meta: { title: "商品编辑" },
       },
       {
         path: "data",

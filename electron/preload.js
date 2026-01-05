@@ -55,6 +55,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("db:update-bundle-status", id, status),
   updateBundle: (bundleData) =>
     ipcRenderer.invoke("db:update-bundle", bundleData),
+  updateBundleItems: (data) =>
+    ipcRenderer.invoke("db:update-bundle-items", data),
   getStats: () => ipcRenderer.invoke("db:get-stats"),
   exportProducts: () => ipcRenderer.invoke("db:export-products"),
   exportInventory: () => ipcRenderer.invoke("db:export-inventory"),

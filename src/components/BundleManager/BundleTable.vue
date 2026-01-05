@@ -1,7 +1,8 @@
 <template>
     <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
         <el-table ref="tableRef" :data="bundleList" style="width: 100%; flex: 1;" height="100%" border stripe
-            v-loading="loading" @selection-change="$emit('selectionChange', $event)" @row-click="handleRowClick">
+            v-loading="loading" @selection-change="$emit('selectionChange', $event)" @row-click="handleRowClick"
+            @row-dblclick="handleRowDblClick">
             <el-table-column type="selection" width="55" />
             <el-table-column prop="virtual_code" label="虚拟编码" width="150" align="center" />
             <el-table-column prop="name" label="货组名称" min-width="160" align="center" />
@@ -60,7 +61,6 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { ElMessage } from 'element-plus'
 import type { ElTable } from 'element-plus'
 import type { BundleRecord } from '../../composables/BundleManager'
 
@@ -74,6 +74,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     'delete': [row: BundleRecord]
+    'edit': [row: BundleRecord]
     'selectionChange': [selection: BundleRecord[]]
     'update:currentPage': [page: number]
     'update:pageSize': [size: number]
@@ -103,8 +104,12 @@ const handleRowClick = (row: BundleRecord) => {
     tableRef.value?.toggleRowSelection(row)
 }
 
+const handleRowDblClick = (row: BundleRecord) => {
+    emit('edit', row)
+}
+
 const handleEdit = (row: BundleRecord) => {
-    ElMessage.info('开发中')
+    emit('edit', row)
 }
 </script>
 

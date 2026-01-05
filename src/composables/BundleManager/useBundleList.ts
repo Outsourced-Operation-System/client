@@ -17,6 +17,10 @@ export interface BundleRecord {
   total_value: number;
   main_value: number;
   gift_value: number;
+  category?: string;
+  product_type?: string;
+  by_sku?: string;
+  fragrance?: string;
   status: string;
 }
 
