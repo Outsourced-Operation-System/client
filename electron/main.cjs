@@ -30,6 +30,8 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    minWidth: 1024,
+    minHeight: 768,
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false,
@@ -49,7 +51,7 @@ function createWindow() {
 
   win.on("unresponsive", () => {
     log.warn("窗口无响应");
-  });  
+  });
 
   if (NODE_ENV === "development") {
     log.info("加载开发服务器: http://localhost:5173");

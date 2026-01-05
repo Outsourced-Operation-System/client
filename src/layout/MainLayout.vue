@@ -122,7 +122,12 @@ const toggleCollapse = () => {
 
 .main-content {
     background-color: #F0F2F5;
-    padding: 20px;
+    padding: 0;
+    /* Remove padding to let child control it */
     transition: margin-left 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* Prevent double scrollbars */
 }
 </style>

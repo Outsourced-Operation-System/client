@@ -126,8 +126,12 @@ onActivated(() => {
 
 <style scoped>
 .bundle-manager {
-    height: calc(100vh - 80px);
+    height: 100%;
     padding: 20px;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .full-height-card {

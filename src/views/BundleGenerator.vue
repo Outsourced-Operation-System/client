@@ -1,6 +1,6 @@
 <template>
     <div class="bundle-generator">
-        <el-row style="height: calc(100vh - 80px); position: relative;">
+        <el-row style="flex: 1; height: 0; position: relative;">
             <!-- 左侧列：搜索 + 列表 -->
             <el-col :span="preview.isPreviewVisible.value ? 16 : 24"
                 style="height: 100%; display: flex; flex-direction: column; transition: all 0.3s ease;">
@@ -346,6 +346,11 @@ onBeforeUnmount(() => {
 <style scoped>
 .bundle-generator {
     padding: 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .expand-btn {
