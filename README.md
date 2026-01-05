@@ -4,7 +4,7 @@
 
 基于 **Electron + Vue 3 + TypeScript + Element Plus** 的桌面应用，用于导入货品/库存数据并快捷生成「货组（Bundle）」及管理。
 
-[![Version](https://img.shields.io/badge/version-0.0.3-blue.svg)](https://github.com/mayoi-Akira/bundle)
+[![Version](https://img.shields.io/badge/version-0.0.5-blue.svg)](https://github.com/mayoi-Akira/bundle)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Electron](https://img.shields.io/badge/Electron-39.2.6-47848F.svg)](https://www.electronjs.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.5.24-42b883.svg)](https://vuejs.org/)
@@ -17,7 +17,7 @@
 
   - 支持导入/更新/覆盖 货品表（商品信息）与 库存表 数据（支持 `.xlsx` / `.xls` / `.csv`）。
   - 显示当前商品总数、最后更新时间。
-  - 支持导出「全部商品数据」「货品表」「库存表」。
+  - 支持导出「货品表」「库存表」「标签表」，并管理标签表。
   - 支持一键清空货品数据 / 库存数据（带二次确认）。
 
 - **货组生成（Bundle 生成）**：
@@ -25,13 +25,19 @@
   - 搜索商品：按名称、编码、TU 等关键词搜索，并可筛选「库存为 0」的数据。
   - 商品选择：在列表中勾选商品，并为每行设置「主品 / 赠品」类型。
   - 统计信息：实时展示主品数量、赠品数量、总货值。
-  - 参数设置：填写货组名称、使用时间（开始/结束日期）。
-  - 一键生成货组：生成成功后返回虚拟编码 `virtual_code` 并存入本地数据库。
+  - 参数设置：填写货组名称、使用时间（开始/结束日期）、用途、分类、品类、By-SKU、香型等标签。
+  - 一键生成货组：生成成功后返回虚拟编码 `virtual_code` 并存入本地数据库，同时扣减对应库存。
+
+- **货组商品编辑**：
+
+  - 在「货组管理」中进入单个货组的「商品编辑」页面，对已生成货组的主品/赠品明细进行调整。
+  - 实时从 `goods` 表获取最新库存，保证编辑页展示的库存数量与「货组生成」页一致。
+  - 支持变更主品/赠品类型、移除商品、分页浏览，并在保存时更新货组货值与占用库存；返回时如有未保存修改会提示确认放弃。
 
 - **货组管理**：
-  - 列表查看已生成的货组（虚拟编码、名称、时间范围、总货值、状态等）。
-  - 支持按时间区间、关键词检索。
-  - 预留操作：编辑、复制、导出、删除等（删除已接入后端逻辑）。
+  - 列表查看已生成的货组（虚拟编码、名称、时间范围、总货值、状态、用途、标签等）。
+  - 支持按时间区间、关键词、状态、用途、分类等条件检索。
+  - 支持单个/批量删除、批量导出（按 SKU / 虚拟组套两种格式）；编辑与商品编辑已接入后端逻辑。
 
 **数据存储位置**：`app.getPath("userData")/bundle.db`
 
@@ -70,8 +76,6 @@
 │  │  ├─ BundleGenerator/     # 货组生成逻辑
 │  │  ├─ BundleManager/       # 货组管理逻辑
 │  │  └─ DataMaintenance/     # 数据维护逻辑
-│  └─ utils/                   # 工具函数
-│     └─ electronAPI.ts       # 预加载脚本暴露的 IPC
 │
 └─public/                      # 静态资源
 ```
@@ -135,18 +139,19 @@ npm run electron:build
 
 输出目录：`release/`
 
-- `Bundle Setup 0.0.3.exe` - Windows 安装程序
+- `Bundle Setup 0.0.5.exe` - Windows 安装程序
 - `win-unpacked/` - 免安装版本
 
 ### 数据库结构
 
-| 表名           | 说明                                | 关键字段                           |
-| -------------- | ----------------------------------- | ---------------------------------- |
-| `products`     | 货品信息（原 goods 表）             | A 码、TU、品名、规格、价格、原产国 |
-| `inventory`    | 库存信息                            | SKU、批次、到期日、可用库存        |
-| `goods`        | 商品聚合表（原 products_view 视图） | TU/SKU 聚合，供搜索使用            |
-| `bundles`      | 货组主表                            | 虚拟编码、名称、使用时间、总货值   |
-| `bundle_items` | 货组明细                            | 关联商品、数量、主品/赠品类型      |
+| 表名           | 说明                             | 关键字段                           |
+| -------------- | -------------------------------- | ---------------------------------- |
+| `products`     | 货品信息（原 goods 表）          | A 码、TU、品名、规格、价格、原产国 |
+| `inventory`    | 库存信息                         | SKU、批次、到期日、可用库存        |
+| `goods`        | 商品聚合视图（原 products_view） | 按 SKU 聚合的商品+库存视图         |
+| `bundles`      | 货组主表                         | 虚拟编码、名称、使用时间、总货值   |
+| `bundle_items` | 货组明细                         | 关联商品、数量、主品/赠品类型      |
+| `labels`       | 标签表                           | category、product_type、by_sku 等  |
 
 ### 数据操作
 
@@ -185,6 +190,7 @@ npm run electron:build
 - 应用使用 `better-sqlite3` 原生 SQLite 数据库，数据自动持久化到 `bundle.db` 文件：
   - 表 `products`：存储货品信息（A 码、TU、品名、规格、价格、原产国等）。
   - 表 `inventory`：存储库存信息（SKU、批次、到期日、可用库存等）。
-  - 表 `goods`：将 `products` 与 `inventory` 按 TU/SKU 聚合的独立表，供前端商品搜索使用，当 products 或 inventory 更新时自动刷新。
+  - 视图 `goods`：基于 `products` 与 `inventory` 自动聚合的只读视图，供前端商品搜索与库存展示使用。
   - 表 `bundles` / `bundle_items`：存储生成的货组及其包含的商品信息。
+  - 表 `labels`：存储分类、品类、By-SKU、香型等标签值，供货组生成与筛选使用。
 - 数据导入/导出及删除均通过 Electron IPC（在 `electron/main.cjs` 中实现）。
