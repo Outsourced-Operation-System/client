@@ -132,7 +132,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, watch, onActivated } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Search } from '@element-plus/icons-vue'
@@ -517,7 +517,17 @@ const goBack = async () => {
     }
 }
 
-onMounted(() => {
+onActivated(() => {
+    // 重置状态
+    searchQuery.value = ''
+    searchType.value = 'productName'
+    filterZeroStock.value = false
+    currentPage.value = 1
+    bundleItems.value = []
+    originalItems.value = []
+    bundleInfo.value = {}
+    articleStockCache.value.clear()
+
     loadBundleDetail()
 })
 </script>

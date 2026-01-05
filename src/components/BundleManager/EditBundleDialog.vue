@@ -186,13 +186,15 @@ const productTypeLoading = ref(false)
 const bySkuLoading = ref(false)
 const fragranceLoading = ref(false)
 
-// 监听 v-model
-watch(() => props.modelValue, (val) => {
-    dialogVisible.value = val
-    if (val && props.bundleData) {
-        loadBundleDetail(props.bundleData.id)
+// 监听 v-model 和 bundleData 变化
+watch([() => props.modelValue, () => props.bundleData?.id], ([visible, bundleId], [oldVisible, oldBundleId]) => {
+    dialogVisible.value = visible
+    // 当对话框打开且 bundleId 存在时加载数据
+    // 需要在以下情况加载：1. 对话框刚打开 2. bundleId 发生变化
+    if (visible && bundleId && (visible !== oldVisible || bundleId !== oldBundleId)) {
+        loadBundleDetail(bundleId)
     }
-})
+}, { immediate: true })
 
 watch(dialogVisible, (val) => {
     emit('update:modelValue', val)
@@ -328,6 +330,7 @@ const handleEditProducts = () => {
             path: '/bundle-products',
             query: { bundleId: formData.id }
         })
+        ElMessage.success('请在此页面编辑商品信息')
     }
 }
 

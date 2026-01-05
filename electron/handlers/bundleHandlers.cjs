@@ -299,16 +299,32 @@ function registerBundleHandlers() {
         return { success: false, error: "货组不存在" };
       }
 
-      // 获取货组商品列表
+      // 获取货组商品列表，并关联 goods 表获取最新库存
       const items = db
-        .prepare(`SELECT * FROM bundle_items WHERE bundle_id = ?`)
+        .prepare(
+          `
+          SELECT 
+            bi.*,
+            g.qty_available as current_stock
+          FROM bundle_items bi
+          LEFT JOIN goods g ON bi.sku = g.sku
+          WHERE bi.bundle_id = ?
+        `
+        )
         .all(bundleId);
+
+      // 使用最新库存覆盖历史库存
+      const itemsWithStock = items.map((item) => ({
+        ...item,
+        qty_available:
+          item.current_stock !== null ? item.current_stock : item.qty_available,
+      }));
 
       return {
         success: true,
         data: {
           ...bundle,
-          items,
+          items: itemsWithStock,
         },
       };
     } catch (error) {
