@@ -115,9 +115,23 @@ function createTables() {
       product_type TEXT,
       by_sku TEXT,
       fragrance TEXT,
-      status TEXT DEFAULT '有效'
+      status TEXT DEFAULT '有效',
+      parent_id INTEGER DEFAULT NULL,
+      FOREIGN KEY (parent_id) REFERENCES bundles(id) ON DELETE CASCADE
     );
   `);
+
+  // 为现有表添加 parent_id 字段（如果不存在）
+  try {
+    const tableInfo = db.pragma("table_info(bundles)");
+    const hasParentId = tableInfo.some((col) => col.name === "parent_id");
+    if (!hasParentId) {
+      db.exec(`ALTER TABLE bundles ADD COLUMN parent_id INTEGER DEFAULT NULL`);
+      console.log("Added parent_id column to bundles table");
+    }
+  } catch (e) {
+    console.log("parent_id column check/add:", e.message);
+  }
 
   // Bundle Items 表 - 货组明细表（直接存储商品信息，无外键约束）
   db.exec(`

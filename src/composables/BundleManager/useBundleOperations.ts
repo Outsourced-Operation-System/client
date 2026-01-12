@@ -10,7 +10,9 @@ export function useBundleOperations() {
   // 删除单个货组
   const handleDelete = async (row: BundleRecord, onSuccess: () => void) => {
     try {
-      await ElMessageBox.confirm("确定要删除该货组吗？", "提示", {
+      let confirmMsg = "确定要删除该货组吗？";
+
+      await ElMessageBox.confirm(confirmMsg, "提示", {
         confirmButtonText: "确定",
         cancelButtonText: "取消",
         type: "warning",

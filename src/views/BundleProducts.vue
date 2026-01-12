@@ -555,7 +555,12 @@ const handleSave = async () => {
         if (res.success) {
             // 更新原始数据，防止返回时误判为有修改
             originalItems.value = JSON.parse(JSON.stringify(bundleItems.value))
-            ElMessage.success('保存成功')
+            // 判断是否创建了新的子货组
+            if (res.newBundleId) {
+                ElMessage.success('已创建新版本货组')
+            } else {
+                ElMessage.success('保存成功')
+            }
             router.back()
         } else {
             ElMessage.error(res.error || '保存失败')

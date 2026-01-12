@@ -55,41 +55,46 @@ function registerBundleHandlers() {
   });
 
   // 检查商品库存是否充足（支持指定数量）
-  ipcMain.handle("db:check-stock-availability-with-qty", async (event, items) => {
-    try {
-      const db = getDatabase();
-      const insufficientItems = [];
+  ipcMain.handle(
+    "db:check-stock-availability-with-qty",
+    async (event, items) => {
+      try {
+        const db = getDatabase();
+        const insufficientItems = [];
 
-      for (const item of items) {
-        // 通过 sku 查询 inventory 表中的可用库存数量
-        const stock = db
-          .prepare(`SELECT SUM(qty_available) as total FROM inventory WHERE sku = ?`)
-          .get(item.sku);
+        for (const item of items) {
+          // 通过 sku 查询 inventory 表中的可用库存数量
+          const stock = db
+            .prepare(
+              `SELECT SUM(qty_available) as total FROM inventory WHERE sku = ?`
+            )
+            .get(item.sku);
 
-        const available = stock ? stock.total || 0 : 0;
-        const requiredQty = item.requiredQty || 1;
-        
-        if (available < requiredQty) {
-          insufficientItems.push({
-            sku: item.sku,
-            article_code: item.article_code,
-            product_name_cn: item.product_name_cn,
-            qty_available: available,
-            required_qty: requiredQty,
-          });
+          const available = stock ? stock.total || 0 : 0;
+          const requiredQty = item.requiredQty || 1;
+
+          if (available < requiredQty) {
+            insufficientItems.push({
+              sku: item.sku,
+              article_code: item.article_code,
+              product_name_cn: item.product_name_cn,
+              qty_available: available,
+              required_qty: requiredQty,
+            });
+          }
         }
-      }
 
-      return {
-        success: true,
-        sufficient: insufficientItems.length === 0,
-        insufficientItems,
-      };
-    } catch (error) {
-      console.error("Check stock availability with qty error:", error);
-      return { success: false, error: error.message };
+        return {
+          success: true,
+          sufficient: insufficientItems.length === 0,
+          insufficientItems,
+        };
+      } catch (error) {
+        console.error("Check stock availability with qty error:", error);
+        return { success: false, error: error.message };
+      }
     }
-  });
+  );
 
   // 创建货组
   ipcMain.handle("db:create-bundle", async (event, bundleData) => {
@@ -237,8 +242,8 @@ function registerBundleHandlers() {
     try {
       const db = getDatabase();
 
-      // 构建查询条件
-      let whereClause = " WHERE 1=1";
+      // 构建查询条件 - 只查询父货组（parent_id 为 NULL）
+      let whereClause = " WHERE parent_id IS NULL";
       const params = [];
 
       // 时间筛选：根据创建日期筛选
@@ -303,7 +308,9 @@ function registerBundleHandlers() {
         SELECT 
           id, virtual_code, name, created_at as create_date, end_date, usage_type,
           total_value, main_value, gift_value,
-          category, product_type, by_sku, fragrance, status
+          category, product_type, by_sku, fragrance, status, parent_id,
+          (SELECT COUNT(*) FROM bundles c WHERE c.parent_id = bundles.id) as children_count,
+          (SELECT MAX(created_at) FROM bundles c WHERE c.parent_id = bundles.id) as last_update_time
         FROM bundles${whereClause}${orderByClause}
         LIMIT ? OFFSET ?
       `;
@@ -322,14 +329,43 @@ function registerBundleHandlers() {
     }
   });
 
+  // 获取子货组列表
+  ipcMain.handle("db:get-child-bundles", async (event, parentId) => {
+    try {
+      const db = getDatabase();
+
+      const results = db
+        .prepare(
+          `
+          SELECT 
+            id, virtual_code, name, created_at as update_time, end_date, usage_type,
+            total_value, main_value, gift_value,
+            category, product_type, by_sku, fragrance, status, parent_id
+          FROM bundles 
+          WHERE parent_id = ?
+          ORDER BY created_at ASC
+        `
+        )
+        .all(parentId);
+
+      return {
+        success: true,
+        data: results,
+      };
+    } catch (error) {
+      console.error("Get child bundles error:", error);
+      return { success: false, data: [], error: error.message };
+    }
+  });
+
   // 获取货组详情
   ipcMain.handle("db:get-bundle-detail", async (event, bundleId) => {
     try {
       const db = getDatabase();
 
-      // 获取货组基本信息
+      // 获取货组基本信息（包含parent_id）
       const bundle = db
-        .prepare(`SELECT * FROM bundles WHERE id = ?`)
+        .prepare(`SELECT *, parent_id FROM bundles WHERE id = ?`)
         .get(bundleId);
 
       if (!bundle) {
@@ -375,30 +411,56 @@ function registerBundleHandlers() {
     try {
       const db = getDatabase();
 
-      // 先获取货组中的商品列表，用于还原库存
-      const items = db
-        .prepare(`SELECT inventory_id FROM bundle_items WHERE bundle_id = ?`)
-        .all(id);
+      // 获取当前货组信息
+      const currentBundle = db
+        .prepare(`SELECT * FROM bundles WHERE id = ?`)
+        .get(id);
+
+      if (!currentBundle) {
+        return { success: false, error: "货组不存在" };
+      }
 
       const transaction = db.transaction(() => {
-        // 还原库存的 SQL - 根据 inventory_id 精确还原
-        const updateInventory = db.prepare(`
-          UPDATE inventory SET qty_available = qty_available + 1 WHERE id = ?
-        `);
+        // 判断是父货组还是子货组
+        if (currentBundle.parent_id === null) {
+          // 是父货组，检查是否有子货组
+          const childBundles = db
+            .prepare(
+              `SELECT id FROM bundles WHERE parent_id = ? ORDER BY created_at ASC`
+            )
+            .all(id);
 
-        // 还原每个商品的库存
-        for (const item of items) {
-          if (item.inventory_id) {
-            updateInventory.run(item.inventory_id);
+          if (childBundles.length > 0) {
+            // 有子货组，让最旧的子货组成为新的父货组
+            const newParentId = childBundles[0].id;
+
+            // 先将新父货组的 parent_id 设为 NULL（使其成为父货组）
+            db.prepare(`UPDATE bundles SET parent_id = NULL WHERE id = ?`).run(
+              newParentId
+            );
+
+            // 然后将其他所有子货组的 parent_id 指向新的父货组
+            if (childBundles.length > 1) {
+              const otherChildIds = childBundles.slice(1).map((b) => b.id);
+              const placeholders = otherChildIds.map(() => "?").join(",");
+              db.prepare(
+                `UPDATE bundles SET parent_id = ? WHERE id IN (${placeholders})`
+              ).run(newParentId, ...otherChildIds);
+            }
           }
-        }
 
-        db.prepare("DELETE FROM bundle_items WHERE bundle_id = ?").run(id);
-        db.prepare("DELETE FROM bundles WHERE id = ?").run(id);
+          // 删除原父货组的商品和货组记录
+          db.prepare("DELETE FROM bundle_items WHERE bundle_id = ?").run(id);
+          db.prepare("DELETE FROM bundles WHERE id = ?").run(id);
+        } else {
+          // 是子货组，直接删除
+          db.prepare("DELETE FROM bundle_items WHERE bundle_id = ?").run(id);
+          db.prepare("DELETE FROM bundles WHERE id = ?").run(id);
+        }
       });
       transaction();
 
-      return { success: true };
+      return { success: true, deletedCount: 1 };
     } catch (error) {
       console.error("Delete bundle error:", error);
       return { success: false, error: error.message };
@@ -417,7 +479,7 @@ function registerBundleHandlers() {
     }
   });
 
-  // 更新货组信息
+  // 更新货组信息 - 创建子货组而非直接更新
   ipcMain.handle("db:update-bundle", async (event, bundleData) => {
     try {
       const db = getDatabase();
@@ -433,38 +495,98 @@ function registerBundleHandlers() {
         status,
       } = bundleData;
 
-      db.prepare(
-        `
-        UPDATE bundles SET
-          name = ?,
-          end_date = ?,
-          usage_type = ?,
-          category = ?,
-          product_type = ?,
-          by_sku = ?,
-          fragrance = ?,
-          status = ?
-        WHERE id = ?
-      `
-      ).run(
-        name,
-        endDate,
-        usageType,
-        category,
-        productType,
-        bySku,
-        fragrance,
-        status,
-        id
-      );
-      return { success: true };
+      // 获取原货组信息
+      const originalBundle = db
+        .prepare(`SELECT * FROM bundles WHERE id = ?`)
+        .get(id);
+
+      if (!originalBundle) {
+        return { success: false, error: "货组不存在" };
+      }
+
+      // 确定父货组ID：如果原货组有parent_id则用它，否则原货组就是父货组
+      const parentId = originalBundle.parent_id || id;
+
+      const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+
+      const transaction = db.transaction(() => {
+        // 创建新的子货组
+        const insertBundle = db.prepare(`
+          INSERT INTO bundles (
+            virtual_code, name, created_at, end_date, usage_type,
+            total_value, main_value, gift_value,
+            category, product_type, by_sku, fragrance, status, parent_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        const info = insertBundle.run(
+          originalBundle.virtual_code, // 继承虚拟编码
+          name,
+          now,
+          endDate,
+          usageType,
+          originalBundle.total_value, // 继承货值
+          originalBundle.main_value,
+          originalBundle.gift_value,
+          category,
+          productType,
+          bySku,
+          fragrance,
+          status,
+          parentId // 指向父货组
+        );
+        const newBundleId = info.lastInsertRowid;
+
+        // 复制原货组的商品到新子货组
+        const originalItems = db
+          .prepare(`SELECT * FROM bundle_items WHERE bundle_id = ?`)
+          .all(id);
+
+        const insertItem = db.prepare(`
+          INSERT INTO bundle_items (
+            bundle_id, sku, article_code, tu, product_name_cn, product_name_en,
+            cn_current_price, qty_available, remaining_months, declared_content, type, quantity, inventory_id,
+            shelf_life, item_size, net_weight, country_of_origin, width, height
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        for (const item of originalItems) {
+          insertItem.run(
+            newBundleId,
+            item.sku,
+            item.article_code,
+            item.tu,
+            item.product_name_cn,
+            item.product_name_en,
+            item.cn_current_price || 0,
+            item.qty_available || 0,
+            item.remaining_months || "",
+            item.declared_content || "",
+            item.type,
+            item.quantity || 1,
+            null, // 新子货组不关联库存记录
+            item.shelf_life,
+            item.item_size,
+            item.net_weight,
+            item.country_of_origin,
+            item.width,
+            item.height
+          );
+        }
+
+        return newBundleId;
+      });
+
+      const newBundleId = transaction();
+
+      return { success: true, newBundleId, parentId };
     } catch (error) {
       console.error("Update bundle error:", error);
       return { success: false, error: error.message };
     }
   });
 
-  // 更新货组商品列表
+  // 更新货组商品列表 - 创建子货组而非直接更新
   ipcMain.handle("db:update-bundle-items", async (event, data) => {
     try {
       const db = getDatabase();
@@ -474,9 +596,7 @@ function registerBundleHandlers() {
         totalValue,
         mainValue,
         giftValue,
-        skuChanges = [], // 新的参数：SKU数量变化 [{sku, change}]
-        addedSkus = [], // 兼容旧逻辑
-        removedSkus = [], // 兼容旧逻辑
+        skuChanges = [], // SKU数量变化 [{sku, change}]
       } = data;
 
       // 验证必要参数
@@ -487,28 +607,24 @@ function registerBundleHandlers() {
         return { success: false, error: "商品列表无效" };
       }
 
+      // 获取原货组信息
+      const originalBundle = db
+        .prepare(`SELECT * FROM bundles WHERE id = ?`)
+        .get(bundleId);
+
+      if (!originalBundle) {
+        return { success: false, error: "货组不存在" };
+      }
+
+      // 确定父货组ID：如果原货组有parent_id则用它，否则原货组就是父货组
+      const parentId = originalBundle.parent_id || bundleId;
+
+      const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+
       const transaction = db.transaction(() => {
-        // 获取原有商品列表，用于查找被删除商品的 inventory_id
-        const oldItems = db
-          .prepare(
-            `SELECT id, sku, inventory_id FROM bundle_items WHERE bundle_id = ?`
-          )
-          .all(bundleId);
-
-        // 创建 sku -> inventory_ids 映射（一个SKU可能对应多个inventory_id）
-        const oldItemInventoryMap = new Map();
-        for (const item of oldItems) {
-          if (!oldItemInventoryMap.has(item.sku)) {
-            oldItemInventoryMap.set(item.sku, []);
-          }
-          if (item.inventory_id) {
-            oldItemInventoryMap.get(item.sku).push(item.inventory_id);
-          }
-        }
-
-        // 还原库存的 SQL
-        const updateInventoryAdd = db.prepare(`
-          UPDATE inventory SET qty_available = qty_available + 1 WHERE id = ?
+        // 查找要扣减库存的 inventory 记录 id
+        const findInventory = db.prepare(`
+          SELECT id FROM inventory WHERE sku = ? AND qty_available > 0 LIMIT 1
         `);
 
         // 扣减库存的 SQL
@@ -516,12 +632,7 @@ function registerBundleHandlers() {
           UPDATE inventory SET qty_available = qty_available - 1 WHERE id = ?
         `);
 
-        // 查找要扣减库存的 inventory 记录 id
-        const findInventory = db.prepare(`
-          SELECT id FROM inventory WHERE sku = ? AND qty_available > 0 LIMIT 1
-        `);
-
-        // 处理SKU数量变化
+        // 处理SKU数量变化（只扣减新增的库存）
         if (skuChanges && skuChanges.length > 0) {
           for (const { sku, change } of skuChanges) {
             if (change > 0) {
@@ -532,31 +643,37 @@ function registerBundleHandlers() {
                   updateInventoryDeduct.run(inventoryRecord.id);
                 }
               }
-            } else if (change < 0) {
-              // 数量减少，需要还原库存
-              const inventoryIds = oldItemInventoryMap.get(sku) || [];
-              const restoreCount = Math.min(Math.abs(change), inventoryIds.length);
-              for (let i = 0; i < restoreCount; i++) {
-                if (inventoryIds[i]) {
-                  updateInventoryAdd.run(inventoryIds[i]);
-                }
-              }
             }
-          }
-        } else {
-          // 兼容旧逻辑：使用 addedSkus 和 removedSkus
-          for (const sku of removedSkus) {
-            const inventoryIds = oldItemInventoryMap.get(sku) || [];
-            if (inventoryIds.length > 0) {
-              updateInventoryAdd.run(inventoryIds[0]);
-            }
+            // 注意：数量减少时不还原库存，因为原货组仍然存在
           }
         }
 
-        // 删除原有商品
-        db.prepare("DELETE FROM bundle_items WHERE bundle_id = ?").run(
-          bundleId
+        // 创建新的子货组
+        const insertBundle = db.prepare(`
+          INSERT INTO bundles (
+            virtual_code, name, created_at, end_date, usage_type,
+            total_value, main_value, gift_value,
+            category, product_type, by_sku, fragrance, status, parent_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        const info = insertBundle.run(
+          originalBundle.virtual_code,
+          originalBundle.name,
+          now,
+          originalBundle.end_date,
+          originalBundle.usage_type,
+          totalValue,
+          mainValue,
+          giftValue,
+          originalBundle.category,
+          originalBundle.product_type,
+          originalBundle.by_sku,
+          originalBundle.fragrance,
+          originalBundle.status,
+          parentId
         );
+        const newBundleId = info.lastInsertRowid;
 
         // 从 goods 表获取商品详细信息
         const getGoodsInfo = db.prepare(`
@@ -587,29 +704,8 @@ function registerBundleHandlers() {
           return { width: null, height: null };
         }
 
-        // 跟踪每个SKU已使用的inventory_id数量
-        const usedInventoryCount = new Map();
-
         for (const item of items) {
           const sku = item.sku || item.tu;
-          let inventoryId = null;
-
-          // 尝试复用原有的 inventory_id
-          const oldInventoryIds = oldItemInventoryMap.get(sku) || [];
-          const usedCount = usedInventoryCount.get(sku) || 0;
-          
-          if (usedCount < oldInventoryIds.length) {
-            // 还有可复用的 inventory_id
-            inventoryId = oldInventoryIds[usedCount];
-          } else {
-            // 需要查找新的 inventory_id（新增的商品）
-            const inventoryRecord = db.prepare(
-              `SELECT id FROM inventory WHERE sku = ? LIMIT 1`
-            ).get(sku);
-            inventoryId = inventoryRecord ? inventoryRecord.id : null;
-          }
-          
-          usedInventoryCount.set(sku, usedCount + 1);
 
           // 从 goods 表获取商品信息
           const goodsInfo = getGoodsInfo.get(sku);
@@ -626,7 +722,7 @@ function registerBundleHandlers() {
           const { width, height } = parseItemSize(itemSize);
 
           insertItem.run(
-            bundleId,
+            newBundleId,
             sku,
             item.article_code,
             item.tu,
@@ -638,7 +734,7 @@ function registerBundleHandlers() {
             item.declared_content || "",
             item.type,
             1,
-            inventoryId,
+            null, // 子货组不关联库存记录
             shelfLife,
             itemSize,
             netWeight,
@@ -648,27 +744,17 @@ function registerBundleHandlers() {
           );
         }
 
-        // 更新货组的货值
-        db.prepare(
-          `
-          UPDATE bundles SET
-            total_value = ?,
-            main_value = ?,
-            gift_value = ?
-          WHERE id = ?
-        `
-        ).run(totalValue, mainValue, giftValue, bundleId);
+        return newBundleId;
       });
 
-      transaction();
+      const newBundleId = transaction();
 
-      return { success: true };
+      return { success: true, newBundleId, parentId };
     } catch (error) {
       console.error("Update bundle items error:", error);
       return { success: false, error: error.message };
     }
   });
-
   // 获取今天的货组数量, 用于生成虚拟编码
   ipcMain.handle("db:get-today-bundle-count", async () => {
     try {
@@ -691,33 +777,13 @@ function registerBundleHandlers() {
     try {
       const db = getDatabase();
 
-      // 先获取所有货组中的商品列表，用于还原库存
-      const getItems = db.prepare(
-        `SELECT inventory_id FROM bundle_items WHERE bundle_id = ?`
-      );
-
       const transaction = db.transaction(() => {
         const deleteItems = db.prepare(
           "DELETE FROM bundle_items WHERE bundle_id = ?"
         );
         const deleteBundles = db.prepare("DELETE FROM bundles WHERE id = ?");
 
-        // 还原库存的 SQL - 根据 inventory_id 精确还原
-        const updateInventory = db.prepare(`
-          UPDATE inventory SET qty_available = qty_available + 1 WHERE id = ?
-        `);
-
         for (const id of ids) {
-          // 获取该货组的商品列表
-          const items = getItems.all(id);
-
-          // 还原每个商品的库存
-          for (const item of items) {
-            if (item.inventory_id) {
-              updateInventory.run(item.inventory_id);
-            }
-          }
-
           deleteItems.run(id);
           deleteBundles.run(id);
         }
@@ -748,17 +814,13 @@ function registerBundleHandlers() {
         console.log("准备导出，类型：", exportType);
         let defaultFileName;
         if (exportType === "sku") {
-          defaultFileName = `Rituals_SKU_${dayjs().format(
-            "YYYYMMDD"
-          )}.xlsx`;
+          defaultFileName = `Rituals_SKU_${dayjs().format("YYYYMMDD")}.xlsx`;
         } else if (exportType === "virtual") {
           defaultFileName = `Rituals_虚拟套组_${dayjs().format(
             "YYYYMMDD"
           )}.xlsx`;
         } else {
-          defaultFileName = `Rituals_货组_${dayjs().format(
-            "YYYYMMDD"
-          )}.xlsx`;
+          defaultFileName = `Rituals_货组_${dayjs().format("YYYYMMDD")}.xlsx`;
         }
 
         // 弹出保存对话框

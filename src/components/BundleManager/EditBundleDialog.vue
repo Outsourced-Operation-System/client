@@ -1,5 +1,6 @@
 <template>
-    <el-dialog v-model="dialogVisible" title="编辑货组" width="600px" :close-on-click-modal="false" @close="handleClose">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" :close-on-click-modal="false"
+        @close="handleClose">
         <div class="edit-bundle-content" v-loading="loading">
             <table class="info-table">
                 <tbody>
@@ -8,7 +9,7 @@
                         <td class="value-cell">{{ formData.virtual_code || '-' }}</td>
                     </tr>
                     <tr>
-                        <td class="label-cell">创建时间</td>
+                        <td class="label-cell">{{ isChildBundle ? '更新时间' : '创建时间' }}</td>
                         <td class="value-cell">{{ formData.create_date || '-' }}</td>
                     </tr>
                     <tr>
@@ -126,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Edit } from '@element-plus/icons-vue'
@@ -138,6 +139,7 @@ interface BundleDetail extends BundleRecord {
     product_type?: string
     by_sku?: string
     fragrance?: string
+    parent_id?: number | null
 }
 
 const props = defineProps<{
@@ -156,6 +158,16 @@ const dialogVisible = ref(false)
 const loading = ref(false)
 const saving = ref(false)
 
+// 判断是否是子货组
+const isChildBundle = computed(() => {
+    return !!(props.bundleData as any)?.isChild || !!(formData.parent_id)
+})
+
+// 对话框标题
+const dialogTitle = computed(() => {
+    return isChildBundle.value ? '编辑子货组' : '编辑货组'
+})
+
 // 表单数据
 const formData = reactive<BundleDetail>({
     id: 0,
@@ -171,7 +183,8 @@ const formData = reactive<BundleDetail>({
     product_type: '',
     by_sku: '',
     fragrance: '',
-    status: '有效'
+    status: '有效',
+    parent_id: null
 })
 
 // 标签选项
@@ -267,7 +280,8 @@ const loadBundleDetail = async (bundleId: number) => {
                 by_sku: data.by_sku || '',
                 fragrance: data.fragrance || '',
                 status: data.status,
-                items: data.items || []
+                items: data.items || [],
+                parent_id: data.parent_id || null
             })
 
             // 初始化标签选项，确保当前值在列表中
@@ -308,7 +322,12 @@ const handleSave = async () => {
         })
 
         if (res.success) {
-            ElMessage.success('保存成功')
+            // 判断是更新父货组还是创建了新的子货组
+            if (res.newBundleId) {
+                ElMessage.success('已创建新版本货组')
+            } else {
+                ElMessage.success('保存成功')
+            }
             dialogVisible.value = false
             emit('saved')
         } else {
@@ -351,7 +370,8 @@ const handleClose = () => {
         product_type: '',
         by_sku: '',
         fragrance: '',
-        status: '有效'
+        status: '有效',
+        parent_id: null
     })
 }
 </script>

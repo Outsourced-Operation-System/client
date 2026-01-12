@@ -47,6 +47,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   createBundle: (bundleData) =>
     ipcRenderer.invoke("db:create-bundle", bundleData),
   getBundles: (filters) => ipcRenderer.invoke("db:get-bundles", filters),
+  getChildBundles: (parentId) =>
+    ipcRenderer.invoke("db:get-child-bundles", parentId),
   getBundleDetail: (id) => ipcRenderer.invoke("db:get-bundle-detail", id),
   deleteBundle: (id) => ipcRenderer.invoke("db:delete-bundle", id),
   batchDeleteBundles: (ids) =>

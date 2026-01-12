@@ -14,7 +14,7 @@
                 :current-page="bundleList.currentPage.value" :page-size="bundleList.pageSize.value"
                 :total="bundleList.total.value" @delete="handleDelete" @edit="handleEdit"
                 @selection-change="bundleList.handleSelectionChange" @update:current-page="handlePageChange"
-                @update:page-size="handlePageSizeChange" />
+                @update:page-size="handlePageSizeChange" @toggle-expand="handleToggleExpand" />
         </el-card>
 
         <!-- 编辑货组对话框 -->
@@ -67,6 +67,11 @@ const handlePageSizeChange = (newPageSize: number) => {
     bundleList.pageSize.value = newPageSize
     bundleList.currentPage.value = 1
     bundleList.fetchBundles(filter.getFilters())
+}
+
+// 展开/折叠子货组
+const handleToggleExpand = (row: BundleRecord) => {
+    bundleList.toggleExpand(row)
 }
 
 // 删除单个货组
