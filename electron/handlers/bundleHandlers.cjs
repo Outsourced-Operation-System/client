@@ -733,7 +733,7 @@ function registerBundleHandlers() {
 
   // SKU 导出函数
   async function exportSkuTable(db, ids, filePath) {
-    const XLSX = require("xlsx");
+    const ExcelJS = require("exceljs");
 
     // 准备 SKU 商品主档数据
     const skuMainData = [];
@@ -774,6 +774,11 @@ function registerBundleHandlers() {
       const fullProductName = allProductNames.join(" + ");
 
       // SKU 商品主档行数据
+      // 格式化日期为 YYYY/M/D 格式
+      const formattedDate = bundle.created_at
+        ? dayjs(bundle.created_at).format("YYYY/M/D")
+        : "";
+
       skuMainData.push({
         虚拟表格编号: virtualTableIndex,
         SPU编码: "",
@@ -781,114 +786,103 @@ function registerBundleHandlers() {
         商品名称: bundle.name,
         商品全称: fullProductName,
         品牌名称: "Rituals",
-        "零售价（元）": bundle.total_value,
-        "标准进价（元）": bundle.total_value,
+        "零售价(元)": bundle.total_value,
+        "标准进价(元)": bundle.total_value,
         商品分类路径: "",
         商品类型: "虚拟套组",
         拆包单位: "",
         组包单位: "",
         厂商货号: "",
         外部系统编码: "",
-        "新包装 SKU 编码": "",
+        新包装SKU编码: "",
         备注: "",
         保质期: shelfLife,
-        原产地: countryOfOrigin,
+        // 原产地: countryOfOrigin,
+        原产地: "",
         商品单位: "个",
         采购单位: "个",
         商品状态: "启用",
         颜色: "",
-        尺码: itemSize,
+        // 尺码: itemSize,
+        尺码: "",
         款色码: "",
         规格: "",
-        "是否 ERP 商品": "否",
+        是否ERP商品: "否",
         是否危险品: "否",
         是否消耗品: "否",
         图片: "",
       });
-
-      // 商品规格：每个商品一行
-      for (const item of items) {
-        specData.push({
-          虚拟主表编号: virtualTableIndex,
-          商品条码: "",
-          商品单位: "个",
-          "EA 转换数量": "",
-          标准售价: bundle.total_value,
-          标准进价: "",
-          "毛重（KG）": "",
-          "净重（KG）": item.net_weight || "",
-          "材积（CM^3）": "",
-          "体积（CM^3）": item.item_size || "",
-          "宽（CM）": item.width || "",
-          高: item.height || "",
-          单位状态: "有效",
-        });
-      }
-
       virtualTableIndex++;
     }
 
     // 创建工作簿
-    const wb = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
 
     // 创建 SKU 商品主档 sheet
-    const wsMain = XLSX.utils.json_to_sheet(skuMainData);
-    // 设置列宽
-    wsMain["!cols"] = [
-      { wch: 12 }, // 虚拟表格编号
-      { wch: 10 }, // SPU编码
-      { wch: 15 }, // 商品编码
-      { wch: 30 }, // 商品名称
-      { wch: 50 }, // 商品全称
-      { wch: 10 }, // 品牌名称
-      { wch: 12 }, // 零售价（元）
-      { wch: 12 }, // 标准进价（元）
-      { wch: 15 }, // 商品分类路径
-      { wch: 12 }, // 商品类型
-      { wch: 10 }, // 拆包单位
-      { wch: 10 }, // 组包单位
-      { wch: 12 }, // 厂商货号
-      { wch: 15 }, // 外部系统编码
-      { wch: 18 }, // 新包装 SKU 编码
-      { wch: 15 }, // 备注
-      { wch: 15 }, // 保质期
-      { wch: 12 }, // 原产地
-      { wch: 10 }, // 商品单位
-      { wch: 10 }, // 采购单位
-      { wch: 10 }, // 商品状态
-      { wch: 10 }, // 颜色
-      { wch: 15 }, // 尺码
-      { wch: 10 }, // 款色码
-      { wch: 10 }, // 规格
-      { wch: 15 }, // 是否 ERP 商品
-      { wch: 12 }, // 是否危险品
-      { wch: 12 }, // 是否消耗品
-      { wch: 10 }, // 图片
+    const wsMain = workbook.addWorksheet("SKU商品主档");
+
+    // 定义列
+    wsMain.columns = [
+      { header: "虚拟表格编号", key: "虚拟表格编号", width: 12 },
+      { header: "SPU编码", key: "SPU编码", width: 10 },
+      { header: "商品编码", key: "商品编码", width: 15 },
+      { header: "商品名称", key: "商品名称", width: 30 },
+      { header: "商品全称", key: "商品全称", width: 50 },
+      { header: "品牌名称", key: "品牌名称", width: 10 },
+      { header: "零售价(元)", key: "零售价(元)", width: 12 },
+      { header: "标准进价(元)", key: "标准进价(元)", width: 12 },
+      { header: "商品分类路径", key: "商品分类路径", width: 15 },
+      { header: "商品类型", key: "商品类型", width: 12 },
+      { header: "拆包单位", key: "拆包单位", width: 10 },
+      { header: "组包单位", key: "组包单位", width: 10 },
+      { header: "厂商货号", key: "厂商货号", width: 12 },
+      { header: "外部系统编码", key: "外部系统编码", width: 15 },
+      { header: "新包装SKU编码", key: "新包装SKU编码", width: 18 },
+      { header: "备注", key: "备注", width: 15 },
+      { header: "保质期", key: "保质期", width: 15 },
+      { header: "原产地", key: "原产地", width: 12 },
+      { header: "商品单位", key: "商品单位", width: 10 },
+      { header: "采购单位", key: "采购单位", width: 10 },
+      { header: "商品状态", key: "商品状态", width: 10 },
+      { header: "颜色", key: "颜色", width: 10 },
+      { header: "尺码", key: "尺码", width: 15 },
+      { header: "款色码", key: "款色码", width: 10 },
+      { header: "规格", key: "规格", width: 10 },
+      { header: "是否ERP商品", key: "是否ERP商品", width: 15 },
+      { header: "是否危险品", key: "是否危险品", width: 12 },
+      { header: "是否消耗品", key: "是否消耗品", width: 12 },
+      { header: "图片", key: "图片", width: 10 },
     ];
-    XLSX.utils.book_append_sheet(wb, wsMain, "SKU商品主档");
+
+    // 设置表头居中对齐
+    wsMain.getRow(1).alignment = { horizontal: "center", vertical: "middle" };
+
+    // 添加数据
+    wsMain.addRows(skuMainData);
 
     // 创建商品规格 sheet
-    const wsSpec = XLSX.utils.json_to_sheet(specData);
-    // 设置列宽
-    wsSpec["!cols"] = [
-      { wch: 12 }, // 虚拟主表编号
-      { wch: 15 }, // 商品条码
-      { wch: 10 }, // 商品单位
-      { wch: 15 }, // EA 转换数量
-      { wch: 12 }, // 标准售价
-      { wch: 12 }, // 标准进价
-      { wch: 12 }, // 毛重（KG）
-      { wch: 12 }, // 净重（KG）
-      { wch: 15 }, // 材积（CM^3）
-      { wch: 20 }, // 体积（CM^3）
-      { wch: 10 }, // 宽（CM）
-      { wch: 10 }, // 高
-      { wch: 10 }, // 单位状态
+    const wsSpec = workbook.addWorksheet("商品规格");
+    wsSpec.columns = [
+      { header: "虚拟主表编号", key: "虚拟主表编号", width: 12 },
+      { header: "商品条码", key: "商品条码", width: 15 },
+      { header: "商品单位", key: "商品单位", width: 10 },
+      { header: "EA转换数量", key: "EA转换数量", width: 15 },
+      { header: "标准售价", key: "标准售价", width: 12 },
+      { header: "标准进价", key: "标准进价", width: 12 },
+      { header: "毛重(KG)", key: "毛重(KG)", width: 12 },
+      { header: "净重(KG)", key: "净重(KG)", width: 12 },
+      { header: "材积(CM³)", key: "材积(CM³)", width: 15 },
+      { header: "体积(CM³)", key: "体积(CM³)", width: 20 },
+      { header: "宽(CM)", key: "宽(CM)", width: 10 },
+      { header: "高", key: "高", width: 10 },
+      { header: "单位状态", key: "单位状态", width: 10 },
     ];
-    XLSX.utils.book_append_sheet(wb, wsSpec, "商品规格");
+
+    // 设置表头居中对齐
+    wsSpec.getRow(1).alignment = { horizontal: "center", vertical: "middle" };
 
     // 写入文件
-    XLSX.writeFile(wb, filePath);
+    await workbook.xlsx.writeFile(filePath);
 
     return {
       success: true,
@@ -903,7 +897,7 @@ function registerBundleHandlers() {
     console.log("参数 - ids:", ids);
     console.log("参数 - filePath:", filePath);
 
-    const XLSX = require("xlsx");
+    const ExcelJS = require("exceljs");
 
     // 准备"组套商品"数据
     const bundleData = [];
@@ -953,35 +947,45 @@ function registerBundleHandlers() {
     }
 
     // 创建工作簿
-    const wb = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
 
     // 创建"组套商品" sheet
-    const wsBundle = XLSX.utils.json_to_sheet(bundleData);
-    wsBundle["!cols"] = [
-      { wch: 15 }, // 虚拟表格编号
-      { wch: 20 }, // 组合商品编码
-      { wch: 20 }, // 组合名称
-      { wch: 20 }, // 生效时间
-      { wch: 20 }, // 失效时间
+    const wsBundle = workbook.addWorksheet("组套商品");
+    wsBundle.columns = [
+      { header: "虚拟表格编号", key: "虚拟表格编号", width: 15 },
+      { header: "组合商品编码", key: "组合商品编码", width: 20 },
+      { header: "组合名称", key: "组合名称", width: 20 },
+      { header: "生效时间", key: "生效时间", width: 20 },
+      { header: "失效时间", key: "失效时间", width: 20 },
     ];
-    XLSX.utils.book_append_sheet(wb, wsBundle, "组套商品");
+
+    // 设置表头居中对齐
+    wsBundle.getRow(1).alignment = { horizontal: "center", vertical: "middle" };
+
+    // 添加数据
+    wsBundle.addRows(bundleData);
 
     // 创建"组套商品明细" sheet
-    const wsDetail = XLSX.utils.json_to_sheet(detailData);
-    wsDetail["!cols"] = [
-      { wch: 15 }, // 虚拟主表编号
-      { wch: 20 }, // 子品 sku 编码
-      { wch: 10 }, // 数量
-      { wch: 15 }, // 分摊比例
+    const wsDetail = workbook.addWorksheet("组套商品明细");
+    wsDetail.columns = [
+      { header: "虚拟主表编号", key: "虚拟主表编号", width: 15 },
+      { header: "子品 sku 编码", key: "子品 sku 编码", width: 20 },
+      { header: "数量", key: "数量", width: 10 },
+      { header: "分摊比例", key: "分摊比例", width: 15 },
     ];
-    XLSX.utils.book_append_sheet(wb, wsDetail, "组套商品明细");
+
+    // 设置表头居中对齐
+    wsDetail.getRow(1).alignment = { horizontal: "center", vertical: "middle" };
+
+    // 添加数据
+    wsDetail.addRows(detailData);
 
     // 写入文件
     console.log("虚拟组套：准备写入文件:", filePath);
     console.log("虚拟组套：组套商品数量:", bundleData.length);
     console.log("虚拟组套：商品明细数量:", detailData.length);
 
-    XLSX.writeFile(wb, filePath);
+    await workbook.xlsx.writeFile(filePath);
 
     console.log("==== 虚拟组套导出完成 ====");
 
