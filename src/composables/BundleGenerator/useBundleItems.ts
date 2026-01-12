@@ -2,18 +2,25 @@ import { ref, computed } from "vue";
 import { ElMessage } from "element-plus";
 
 export interface BundleItem {
-  sku: string;
-  article_code: string;
-  tu: string;
-  product_name_cn: string;
-  product_name_en: string;
-  qty_available: number;
-  tu_shelf_life: string;
-  declared_content: string;
-  cn_current_price: number;
-  shelf_life: string;
+  uid: string; // 唯一标识，支持同一商品多次添加
+  sku?: string;
+  article_code?: string;
+  tu?: string;
+  product_name_cn?: string;
+  product_name_en?: string;
+  qty_available?: number;
+  tu_shelf_life?: string;
+  declared_content?: string;
+  cn_current_price?: number;
+  shelf_life?: string;
   type: "main" | "gift";
+  remaining_months?: string;
 }
+
+// 生成唯一ID
+const generateUid = () => {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
 
 /**
  * 货组商品列表管理 Composable
@@ -25,13 +32,11 @@ export function useBundleItems() {
   // 货组商品列表
   const bundleItems = ref<BundleItem[]>([]);
 
+  // 添加单个商品（允许添加相同商品）
   const addItem = (item: any) => {
-    const exists = bundleItems.value.find((b) => b.sku === item.sku);
-    if (exists) {
-      return false;
-    }
     bundleItems.value.push({
       ...item,
+      uid: generateUid(),
       type: "main",
     });
     return true;
@@ -49,6 +54,26 @@ export function useBundleItems() {
       ElMessage.success(`已添加 ${addedCount} 个商品`);
     }
     return addedCount;
+  };
+
+  // 复制商品（在指定位置后面插入相同商品的副本）
+  const copyItem = (index: number) => {
+    if (index < 0 || index >= bundleItems.value.length) {
+      return false;
+    }
+    const item = bundleItems.value[index];
+    if (!item) {
+      return false;
+    }
+    const newItem: BundleItem = {
+      ...item,
+      uid: generateUid(),
+      type: item.type,
+    };
+    // 在当前位置后面插入副本
+    bundleItems.value.splice(index + 1, 0, newItem);
+    ElMessage.success("已复制商品");
+    return true;
   };
 
   // 移除商品
@@ -119,6 +144,7 @@ export function useBundleItems() {
     bundleItems,
     addItem,
     addItems,
+    copyItem,
     removeItem,
     clearAll,
     refreshItemsStock,

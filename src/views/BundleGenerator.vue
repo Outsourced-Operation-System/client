@@ -15,7 +15,8 @@
                     :is-preview-visible="preview.isPreviewVisible.value" :has-generated="preview.hasGenerated.value"
                     :main-value="items.mainValue.value" :gift-value="items.giftValue.value"
                     :total-value="items.totalValue.value" :get-article-stock-total="stock.getArticleStockTotal"
-                    @remove="items.removeItem" @clear="handleClearAll" @generate="handleGenerate" />
+                    @copy="items.copyItem" @remove="items.removeItem" @clear="handleClearAll"
+                    @generate="handleGenerate" />
             </el-col>
 
             <!-- 右侧预览面板 -->
@@ -152,7 +153,7 @@ const insufficientItemsDisplay = computed(() => {
 const handleClearInsufficientItems = () => {
     const insufficientSkus = new Set(insufficientItems.value.map(item => item.sku))
     items.bundleItems.value = items.bundleItems.value.filter(
-        item => !insufficientSkus.has(item.tu)
+        item => !insufficientSkus.has(String(item.tu))
     )
     showStockDialog.value = false
     insufficientItems.value = []

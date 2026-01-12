@@ -81,8 +81,10 @@
                     </el-table-column>
                     <el-table-column prop="shelf_life" label="保质期" width="100" align="center" />
                     <el-table-column prop="product_name_en" label="英文名" min-width="120" show-overflow-tooltip />
-                    <el-table-column label="操作" width="100" align="center" fixed="right">
+                    <el-table-column label="操作" width="140" align="center" fixed="right">
                         <template #default="scope">
+                            <el-button type="primary" link size="small"
+                                @click="handleCopy(getActualIndex(scope.$index))">复制</el-button>
                             <el-button type="danger" link size="small"
                                 @click="handleRemove(getActualIndex(scope.$index))">移除</el-button>
                         </template>
@@ -218,9 +220,13 @@ const loadBundleDetail = async () => {
         const res = await (window as any).electronAPI.getBundleDetail(Number(bundleId))
         if (res.success && res.data) {
             bundleInfo.value = res.data
-            bundleItems.value = res.data.items || []
+            // 为每个商品生成 uid
+            bundleItems.value = (res.data.items || []).map((item: any) => ({
+                ...item,
+                uid: generateUid()
+            }))
             // 深拷贝保存原始数据用于比较
-            originalItems.value = JSON.parse(JSON.stringify(res.data.items || []))
+            originalItems.value = JSON.parse(JSON.stringify(bundleItems.value))
 
             // 查询所有A码库存
             const articleCodes = new Set(bundleItems.value.map((item: any) => item.article_code).filter(Boolean))
@@ -256,30 +262,73 @@ const getArticleStockTotal = (articleCode: string) => {
     return articleStockCache.value.get(articleCode) ?? '-'
 }
 
-// 检查是否有未保存的修改
+// 检查是否有未保存的修改（考虑同一商品多次出现）
 const hasUnsavedChanges = computed(() => {
     if (bundleItems.value.length !== originalItems.value.length) return true
 
-    const currentSkus = bundleItems.value.map(item => `${item.sku || item.tu}-${item.type}`).sort().join(',')
-    const originalSkus = originalItems.value.map(item => `${item.sku || item.tu}-${item.type}`).sort().join(',')
+    // 统计当前商品每个 SKU+type 组合的数量
+    const currentCounts = new Map<string, number>()
+    bundleItems.value.forEach(item => {
+        const key = `${item.sku || item.tu}-${item.type}`
+        currentCounts.set(key, (currentCounts.get(key) || 0) + 1)
+    })
 
-    return currentSkus !== originalSkus
+    // 统计原始商品每个 SKU+type 组合的数量
+    const originalCounts = new Map<string, number>()
+    originalItems.value.forEach(item => {
+        const key = `${item.sku || item.tu}-${item.type}`
+        originalCounts.set(key, (originalCounts.get(key) || 0) + 1)
+    })
+
+    // 比较两个 Map 是否相等
+    if (currentCounts.size !== originalCounts.size) return true
+
+    for (const [key, count] of currentCounts) {
+        if (originalCounts.get(key) !== count) return true
+    }
+
+    return false
 })
 
-// 检查新增商品的库存
+// 检查新增商品的库存（支持同一商品多次添加）
 const checkNewItemsStock = async (): Promise<{ sufficient: boolean; insufficientItems: any[] }> => {
-    // 找出新增的商品（在当前列表中但不在原始列表中）
-    const originalSkuSet = new Set(originalItems.value.map(item => item.sku || item.tu))
-    const newItems = bundleItems.value.filter(item => !originalSkuSet.has(item.sku || item.tu))
+    // 统计原始商品每个SKU的数量
+    const originalSkuCount = new Map<string, number>()
+    originalItems.value.forEach(item => {
+        const sku = item.sku || item.tu
+        originalSkuCount.set(sku, (originalSkuCount.get(sku) || 0) + 1)
+    })
 
-    if (newItems.length === 0) {
+    // 统计当前商品每个SKU的数量
+    const currentSkuCount = new Map<string, number>()
+    bundleItems.value.forEach(item => {
+        const sku = item.sku || item.tu
+        currentSkuCount.set(sku, (currentSkuCount.get(sku) || 0) + 1)
+    })
+
+    // 找出数量增加的商品
+    const increasedItems: { sku: string; increase: number; item: any }[] = []
+    bundleItems.value.forEach(item => {
+        const sku = item.sku || item.tu
+        const originalCount = originalSkuCount.get(sku) || 0
+        const currentCount = currentSkuCount.get(sku) || 0
+        const increase = currentCount - originalCount
+        // 只检查第一次遇到这个sku时
+        if (increase > 0 && !increasedItems.some(i => i.sku === sku)) {
+            increasedItems.push({ sku, increase, item })
+        }
+    })
+
+    if (increasedItems.length === 0) {
         return { sufficient: true, insufficientItems: [] }
     }
 
     try {
-        const res = await (window as any).electronAPI.checkStockAvailability(
-            newItems.map((item) => ({
-                sku: item.sku || item.tu,
+        // 检查每个需要新增数量的商品的库存是否足够
+        const res = await (window as any).electronAPI.checkStockAvailabilityWithQty(
+            increasedItems.map(({ sku, increase, item }) => ({
+                sku,
+                requiredQty: increase,
                 article_code: item.article_code,
                 product_name_cn: item.product_name_cn,
             }))
@@ -369,32 +418,45 @@ const handleDialogEnter = () => {
     }
 }
 
-// 添加选中的商品
+// 生成唯一ID
+const generateUid = () => {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+}
+
+// 添加选中的商品（允许添加相同商品）
 const handleAddSelected = () => {
     if (dialogSelectedItems.value.length === 0) return
 
-    // 检查是否已存在
-    const existingSkus = new Set(bundleItems.value.map(item => item.sku || item.tu))
-
     dialogSelectedItems.value.forEach(item => {
-        const sku = item.sku || item.tu
-        if (!existingSkus.has(sku)) {
-            bundleItems.value.push({
-                ...item,
-                type: 'main' // 默认为主品
-            })
-            existingSkus.add(sku)
+        bundleItems.value.push({
+            ...item,
+            uid: generateUid(),
+            type: 'main' // 默认为主品
+        })
 
-            // 查询A码库存
-            if (item.article_code) {
-                fetchArticleStockTotal(item.article_code)
-            }
+        // 查询A码库存
+        if (item.article_code) {
+            fetchArticleStockTotal(item.article_code)
         }
     })
 
     showSearchResultDialog.value = false
     dialogSelectedItems.value = []
-    ElMessage.success('添加成功')
+    ElMessage.success(`已添加 ${dialogSelectedItems.value.length > 0 ? dialogSelectedItems.value.length : 1} 个商品`)
+}
+
+// 复制商品
+const handleCopy = (index: number) => {
+    if (index < 0 || index >= bundleItems.value.length) return
+
+    const item = bundleItems.value[index]
+    const newItem = {
+        ...item,
+        uid: generateUid(),
+    }
+    // 在当前位置后面插入副本
+    bundleItems.value.splice(index + 1, 0, newItem)
+    ElMessage.success('已复制商品')
 }
 
 // 移除商品
@@ -447,19 +509,32 @@ const handleSave = async () => {
 
     saving.value = true
     try {
-        // 计算新增和删除的商品
-        const originalSkuSet = new Set(originalItems.value.map(item => item.sku || item.tu))
-        const currentSkuSet = new Set(bundleItems.value.map(item => item.sku || item.tu))
+        // 统计原始商品每个SKU的数量
+        const originalSkuCount = new Map<string, number>()
+        originalItems.value.forEach(item => {
+            const sku = item.sku || item.tu
+            originalSkuCount.set(sku, (originalSkuCount.get(sku) || 0) + 1)
+        })
 
-        // 新增的商品 SKU
-        const addedSkus = bundleItems.value
-            .filter(item => !originalSkuSet.has(item.sku || item.tu))
-            .map(item => item.sku || item.tu)
+        // 统计当前商品每个SKU的数量
+        const currentSkuCount = new Map<string, number>()
+        bundleItems.value.forEach(item => {
+            const sku = item.sku || item.tu
+            currentSkuCount.set(sku, (currentSkuCount.get(sku) || 0) + 1)
+        })
 
-        // 删除的商品 SKU
-        const removedSkus = originalItems.value
-            .filter(item => !currentSkuSet.has(item.sku || item.tu))
-            .map(item => item.sku || item.tu)
+        // 计算每个SKU的数量变化（正数表示新增，负数表示删除）
+        const skuChanges: { sku: string; change: number }[] = []
+        const allSkus = new Set([...originalSkuCount.keys(), ...currentSkuCount.keys()])
+
+        allSkus.forEach(sku => {
+            const originalCount = originalSkuCount.get(sku) || 0
+            const currentCount = currentSkuCount.get(sku) || 0
+            const change = currentCount - originalCount
+            if (change !== 0) {
+                skuChanges.push({ sku, change })
+            }
+        })
 
         // 准备商品数据，确保每个商品都有 sku 字段
         const itemsToSave = bundleItems.value.map(item => ({
@@ -474,8 +549,7 @@ const handleSave = async () => {
             totalValue: Number(totalValue.value),
             mainValue: Number(mainValue.value),
             giftValue: Number(giftValue.value),
-            addedSkus,
-            removedSkus
+            skuChanges // 传递SKU数量变化
         })
 
         if (res.success) {

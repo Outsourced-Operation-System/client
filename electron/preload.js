@@ -42,6 +42,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("db:check-bundle-name-exists", name),
   checkStockAvailability: (items) =>
     ipcRenderer.invoke("db:check-stock-availability", items),
+  checkStockAvailabilityWithQty: (items) =>
+    ipcRenderer.invoke("db:check-stock-availability-with-qty", items),
   createBundle: (bundleData) =>
     ipcRenderer.invoke("db:create-bundle", bundleData),
   getBundles: (filters) => ipcRenderer.invoke("db:get-bundles", filters),

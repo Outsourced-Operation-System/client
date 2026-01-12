@@ -71,8 +71,10 @@
                     </template>
                 </el-table-column>
                 <el-table-column prop="product_name_en" label="英文名" min-width="120" show-overflow-tooltip />
-                <el-table-column label="操作" width="100" align="center" fixed="right">
+                <el-table-column label="操作" width="140" align="center" fixed="right">
                     <template #default="scope">
+                        <el-button type="primary" link size="small"
+                            @click="handleCopy(getActualIndex(scope.$index))">复制</el-button>
                         <el-button type="danger" link size="small"
                             @click="handleRemove(getActualIndex(scope.$index))">移除</el-button>
                     </template>
@@ -165,10 +167,15 @@ const sortByType = (a: any, b: any) => {
 
 // Emits
 const emit = defineEmits<{
+    copy: [index: number]
     remove: [index: number]
     clear: []
     generate: []
 }>()
+
+const handleCopy = (index: number) => {
+    emit('copy', index)
+}
 
 const handleRemove = (index: number) => {
     emit('remove', index)

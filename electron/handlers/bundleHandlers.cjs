@@ -54,6 +54,43 @@ function registerBundleHandlers() {
     }
   });
 
+  // 检查商品库存是否充足（支持指定数量）
+  ipcMain.handle("db:check-stock-availability-with-qty", async (event, items) => {
+    try {
+      const db = getDatabase();
+      const insufficientItems = [];
+
+      for (const item of items) {
+        // 通过 sku 查询 inventory 表中的可用库存数量
+        const stock = db
+          .prepare(`SELECT SUM(qty_available) as total FROM inventory WHERE sku = ?`)
+          .get(item.sku);
+
+        const available = stock ? stock.total || 0 : 0;
+        const requiredQty = item.requiredQty || 1;
+        
+        if (available < requiredQty) {
+          insufficientItems.push({
+            sku: item.sku,
+            article_code: item.article_code,
+            product_name_cn: item.product_name_cn,
+            qty_available: available,
+            required_qty: requiredQty,
+          });
+        }
+      }
+
+      return {
+        success: true,
+        sufficient: insufficientItems.length === 0,
+        insufficientItems,
+      };
+    } catch (error) {
+      console.error("Check stock availability with qty error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // 创建货组
   ipcMain.handle("db:create-bundle", async (event, bundleData) => {
     try {
@@ -437,8 +474,9 @@ function registerBundleHandlers() {
         totalValue,
         mainValue,
         giftValue,
-        addedSkus = [],
-        removedSkus = [],
+        skuChanges = [], // 新的参数：SKU数量变化 [{sku, change}]
+        addedSkus = [], // 兼容旧逻辑
+        removedSkus = [], // 兼容旧逻辑
       } = data;
 
       // 验证必要参数
@@ -453,24 +491,65 @@ function registerBundleHandlers() {
         // 获取原有商品列表，用于查找被删除商品的 inventory_id
         const oldItems = db
           .prepare(
-            `SELECT sku, inventory_id FROM bundle_items WHERE bundle_id = ?`
+            `SELECT id, sku, inventory_id FROM bundle_items WHERE bundle_id = ?`
           )
           .all(bundleId);
 
-        // 创建 sku -> inventory_id 映射
-        const oldItemMap = new Map();
+        // 创建 sku -> inventory_ids 映射（一个SKU可能对应多个inventory_id）
+        const oldItemInventoryMap = new Map();
         for (const item of oldItems) {
-          oldItemMap.set(item.sku, item.inventory_id);
+          if (!oldItemInventoryMap.has(item.sku)) {
+            oldItemInventoryMap.set(item.sku, []);
+          }
+          if (item.inventory_id) {
+            oldItemInventoryMap.get(item.sku).push(item.inventory_id);
+          }
         }
 
-        // 还原被删除商品的库存
+        // 还原库存的 SQL
         const updateInventoryAdd = db.prepare(`
           UPDATE inventory SET qty_available = qty_available + 1 WHERE id = ?
         `);
-        for (const sku of removedSkus) {
-          const inventoryId = oldItemMap.get(sku);
-          if (inventoryId) {
-            updateInventoryAdd.run(inventoryId);
+
+        // 扣减库存的 SQL
+        const updateInventoryDeduct = db.prepare(`
+          UPDATE inventory SET qty_available = qty_available - 1 WHERE id = ?
+        `);
+
+        // 查找要扣减库存的 inventory 记录 id
+        const findInventory = db.prepare(`
+          SELECT id FROM inventory WHERE sku = ? AND qty_available > 0 LIMIT 1
+        `);
+
+        // 处理SKU数量变化
+        if (skuChanges && skuChanges.length > 0) {
+          for (const { sku, change } of skuChanges) {
+            if (change > 0) {
+              // 数量增加，需要扣减库存
+              for (let i = 0; i < change; i++) {
+                const inventoryRecord = findInventory.get(sku);
+                if (inventoryRecord) {
+                  updateInventoryDeduct.run(inventoryRecord.id);
+                }
+              }
+            } else if (change < 0) {
+              // 数量减少，需要还原库存
+              const inventoryIds = oldItemInventoryMap.get(sku) || [];
+              const restoreCount = Math.min(Math.abs(change), inventoryIds.length);
+              for (let i = 0; i < restoreCount; i++) {
+                if (inventoryIds[i]) {
+                  updateInventoryAdd.run(inventoryIds[i]);
+                }
+              }
+            }
+          }
+        } else {
+          // 兼容旧逻辑：使用 addedSkus 和 removedSkus
+          for (const sku of removedSkus) {
+            const inventoryIds = oldItemInventoryMap.get(sku) || [];
+            if (inventoryIds.length > 0) {
+              updateInventoryAdd.run(inventoryIds[0]);
+            }
           }
         }
 
@@ -479,24 +558,9 @@ function registerBundleHandlers() {
           bundleId
         );
 
-        // 查找要扣减库存的 inventory 记录 id
-        const findInventory = db.prepare(`
-          SELECT id FROM inventory WHERE sku = ? AND qty_available > 0 LIMIT 1
-        `);
-
-        // 查找已被货组占用的 inventory 记录 id（用于保留的商品）
-        const findExistingInventory = db.prepare(`
-          SELECT id FROM inventory WHERE sku = ? LIMIT 1
-        `);
-
         // 从 goods 表获取商品详细信息
         const getGoodsInfo = db.prepare(`
           SELECT shelf_life, item_size, net_weight, country_of_origin FROM goods WHERE sku = ?
-        `);
-
-        // 扣减库存的 SQL
-        const updateInventoryDeduct = db.prepare(`
-          UPDATE inventory SET qty_available = qty_available - 1 WHERE id = ?
         `);
 
         // 插入商品
@@ -523,26 +587,29 @@ function registerBundleHandlers() {
           return { width: null, height: null };
         }
 
-        // 新增商品的 SKU 集合
-        const addedSkuSet = new Set(addedSkus);
+        // 跟踪每个SKU已使用的inventory_id数量
+        const usedInventoryCount = new Map();
 
         for (const item of items) {
           const sku = item.sku || item.tu;
           let inventoryId = null;
 
-          if (addedSkuSet.has(sku)) {
-            // 新增商品，需要查找并扣减库存
-            const inventoryRecord = findInventory.get(sku);
-            inventoryId = inventoryRecord ? inventoryRecord.id : null;
+          // 尝试复用原有的 inventory_id
+          const oldInventoryIds = oldItemInventoryMap.get(sku) || [];
+          const usedCount = usedInventoryCount.get(sku) || 0;
+          
+          if (usedCount < oldInventoryIds.length) {
+            // 还有可复用的 inventory_id
+            inventoryId = oldInventoryIds[usedCount];
           } else {
-            // 保留的商品，使用原有的 inventory_id（不需要再次扣减库存）
-            inventoryId = oldItemMap.get(sku) || null;
-            // 如果原来没有 inventory_id，尝试查找一个（不扣减）
-            if (!inventoryId) {
-              const inventoryRecord = findExistingInventory.get(sku);
-              inventoryId = inventoryRecord ? inventoryRecord.id : null;
-            }
+            // 需要查找新的 inventory_id（新增的商品）
+            const inventoryRecord = db.prepare(
+              `SELECT id FROM inventory WHERE sku = ? LIMIT 1`
+            ).get(sku);
+            inventoryId = inventoryRecord ? inventoryRecord.id : null;
           }
+          
+          usedInventoryCount.set(sku, usedCount + 1);
 
           // 从 goods 表获取商品信息
           const goodsInfo = getGoodsInfo.get(sku);
@@ -579,11 +646,6 @@ function registerBundleHandlers() {
             width,
             height
           );
-
-          // 只对新增商品扣减库存
-          if (addedSkuSet.has(sku) && inventoryId) {
-            updateInventoryDeduct.run(inventoryId);
-          }
         }
 
         // 更新货组的货值
