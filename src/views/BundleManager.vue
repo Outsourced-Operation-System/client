@@ -6,8 +6,8 @@
                 @search="handleSearch" @reset="handleReset" />
 
             <!-- 批量操作按钮 -->
-            <BatchOperations :has-selection="bundleList.hasSelection.value" @batch-export="handleBatchExport"
-                @batch-delete="handleBatchDelete" />
+            <BatchOperations :has-selection="bundleList.hasSelection.value" @batch-export-sku="handleBatchExportSku"
+                @batch-export-virtual="handleBatchExportVirtual" @batch-delete="handleBatchDelete" />
 
             <!-- 货组表格 -->
             <BundleTable :bundle-list="bundleList.bundleList.value" :loading="bundleList.loading.value"
@@ -16,9 +16,6 @@
                 @selection-change="bundleList.handleSelectionChange" @update:current-page="handlePageChange"
                 @update:page-size="handlePageSizeChange" />
         </el-card>
-
-        <!-- 导出选项对话框 -->
-        <ExportOptionsDialog ref="exportDialogRef" @confirm="handleExportConfirm" />
 
         <!-- 编辑货组对话框 -->
         <EditBundleDialog v-model="showEditDialog" :bundle-data="currentEditBundle" @saved="handleEditSaved" />
@@ -30,7 +27,6 @@ import { ref, onMounted, onActivated } from 'vue'
 import FilterSection from '@/components/BundleManager/FilterSection.vue'
 import BatchOperations from '@/components/BundleManager/BatchOperations.vue'
 import BundleTable from '@/components/BundleManager/BundleTable.vue'
-import ExportOptionsDialog from '@/components/BundleManager/ExportOptionsDialog.vue'
 import EditBundleDialog from '@/components/BundleManager/EditBundleDialog.vue'
 import { useBundleFilter, useBundleList, useBundleOperations, type BundleRecord } from '@/composables/BundleManager'
 
@@ -42,9 +38,6 @@ const bundleList = useBundleList()
 
 // 操作
 const operations = useBundleOperations()
-
-// 导出对话框引用
-const exportDialogRef = ref()
 
 // 编辑对话框状态
 const showEditDialog = ref(false)
@@ -94,17 +87,20 @@ const handleEditSaved = () => {
     bundleList.fetchBundles(filter.getFilters())
 }
 
-// 批量导出 - 打开选项对话框
-const handleBatchExport = () => {
+// 批量导出SKU
+const handleBatchExportSku = () => {
     if (bundleList.selectedBundles.value.length === 0) {
         return
     }
-    exportDialogRef.value?.open()
+    operations.handleBatchExport(bundleList.selectedBundles.value, { exportSku: true, exportVirtual: false })
 }
 
-// 确认导出
-const handleExportConfirm = (options: { exportSku: boolean; exportVirtual: boolean }) => {
-    operations.handleBatchExport(bundleList.selectedBundles.value, options)
+// 批量导出虚拟货组
+const handleBatchExportVirtual = () => {
+    if (bundleList.selectedBundles.value.length === 0) {
+        return
+    }
+    operations.handleBatchExport(bundleList.selectedBundles.value, { exportSku: false, exportVirtual: true })
 }
 
 // 批量删除

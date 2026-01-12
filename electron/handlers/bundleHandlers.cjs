@@ -686,16 +686,16 @@ function registerBundleHandlers() {
         console.log("准备导出，类型：", exportType);
         let defaultFileName;
         if (exportType === "sku") {
-          defaultFileName = `SKU 导出_${dayjs().format(
-            "YYYYMMDD_HHmmss"
+          defaultFileName = `Rituals_SKU_${dayjs().format(
+            "YYYYMMDD"
           )}.xlsx`;
         } else if (exportType === "virtual") {
-          defaultFileName = `虚拟组套导出_${dayjs().format(
-            "YYYYMMDD_HHmmss"
+          defaultFileName = `Rituals_虚拟套组_${dayjs().format(
+            "YYYYMMDD"
           )}.xlsx`;
         } else {
-          defaultFileName = `货组导出_${dayjs().format(
-            "YYYYMMDD_HHmmss"
+          defaultFileName = `Rituals_货组_${dayjs().format(
+            "YYYYMMDD"
           )}.xlsx`;
         }
 
