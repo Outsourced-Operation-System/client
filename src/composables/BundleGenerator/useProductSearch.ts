@@ -1,5 +1,6 @@
 import { ref, watch } from "vue";
 import { ElMessage } from "element-plus";
+import { productApi } from "@/api";
 
 /**
  * 商品搜索 Composable
@@ -30,8 +31,8 @@ export function useProductSearch() {
     }
 
     try {
-      const res = await (window as any).electronAPI.searchProductSuggestions(
-        String(queryString)
+      const res = await productApi.searchProductSuggestions(
+        String(queryString),
       );
       const suggestions = res.map((item: any) => ({
         value: item.product_name_cn,
@@ -66,10 +67,10 @@ export function useProductSearch() {
         filterZeroStock: filterZeroStock.value,
       });
 
-      const res = await (window as any).electronAPI.searchProductsByTypes(
+      const res = await productApi.searchProductsByTypes(
         String(searchQuery.value),
         [searchType.value],
-        Boolean(filterZeroStock.value)
+        Boolean(filterZeroStock.value),
       );
 
       console.log("搜索结果:", res);

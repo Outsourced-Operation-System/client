@@ -1,4 +1,5 @@
 import { ref, onMounted } from "vue";
+import { dataApi, backupApi } from "@/api";
 /**
  * 数据统计 Composable
  * 负责获取和管理货品数据统计信息
@@ -22,17 +23,14 @@ export function useDataStats() {
   // 获取数据统计信息
   const fetchStats = async () => {
     try {
-      const res = await (window as any).electronAPI.getStats();
-      const backupRes = await (window as any).electronAPI.getLastBackupTime();
+      const res = await dataApi.getStats();
+      const backupRes = await backupApi.getLastBackupTime();
       stats.value = {
         count: res.count,
         goodsLastUpdate: res.goodsLastUpdate || "-",
         inventoryLastUpdate: res.inventoryLastUpdate || "-",
         labelLastUpdate: res.labelLastUpdate || "-",
-        lastBackupTime:
-          backupRes.success && backupRes.lastBackupTime
-            ? backupRes.lastBackupTime
-            : "-",
+        lastBackupTime: backupRes.lastBackupTime || "-",
       };
     } catch (e) {
       console.error(e);

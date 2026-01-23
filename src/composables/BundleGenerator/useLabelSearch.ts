@@ -1,5 +1,6 @@
 import { ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { labelApi } from "@/api";
 
 /**
  * 标签搜索 Composable
@@ -43,27 +44,22 @@ export function useLabelSearch() {
 
       // 无论是否有查询内容，都执行搜索
       // 空查询会返回所有数据（由后端limit控制数量）
-      const res = await (window as any).electronAPI.searchLabels(
-        field,
-        query || ""
-      );
+      const res = await labelApi.searchLabels(field, query || "");
 
-      if (res.success) {
-        // 更新对应的选项列表
-        switch (field) {
-          case "category":
-            categories.value = res.data;
-            break;
-          case "productType":
-            productTypes.value = res.data;
-            break;
-          case "bySku":
-            bySkuList.value = res.data;
-            break;
-          case "fragrance":
-            fragrances.value = res.data;
-            break;
-        }
+      // 更新对应的选项列表
+      switch (field) {
+        case "category":
+          categories.value = res;
+          break;
+        case "productType":
+          productTypes.value = res;
+          break;
+        case "bySku":
+          bySkuList.value = res;
+          break;
+        case "fragrance":
+          fragrances.value = res;
+          break;
       }
     } catch (e) {
       console.error("搜索标签失败:", e);
@@ -86,10 +82,10 @@ export function useLabelSearch() {
           confirmButtonText: "确定",
           cancelButtonText: "取消",
           type: "warning",
-        }
+        },
       );
 
-      const res = await (window as any).electronAPI.deleteLabel(field, value);
+      const res = await labelApi.deleteLabel(field, value);
 
       if (res.success) {
         ElMessage.success("删除成功");
@@ -117,7 +113,7 @@ export function useLabelSearch() {
           cancelButtonText: "取消",
           inputPattern: /\S+/,
           inputErrorMessage: "标签不能为空",
-        }
+        },
       );
 
       if (!newValue || !newValue.trim()) {
@@ -126,10 +122,7 @@ export function useLabelSearch() {
 
       const trimmedValue = newValue.trim();
 
-      const res = await (window as any).electronAPI.addLabel(
-        field,
-        trimmedValue
-      );
+      const res = await labelApi.addLabel(field, trimmedValue);
 
       if (res.success) {
         ElMessage.success("添加成功");

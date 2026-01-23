@@ -1,4 +1,5 @@
 import { ElMessage } from "element-plus";
+import { dataApi } from "@/api";
 /**
  * 数据导出 Composable
  * 负责货品数据、库存数据和标签数据的导出
@@ -6,7 +7,7 @@ import { ElMessage } from "element-plus";
 export function useDataExport() {
   const handleExportProducts = async () => {
     try {
-      const res = await (window as any).electronAPI.exportProducts();
+      const res = await dataApi.exportProducts();
       if (res.success) {
         ElMessage.success(`成功导出 ${res.count} 条记录到 ${res.filePath}`);
       } else {
@@ -23,7 +24,7 @@ export function useDataExport() {
 
   const handleExportInventory = async () => {
     try {
-      const res = await (window as any).electronAPI.exportInventory();
+      const res = await dataApi.exportInventory();
       if (res.success) {
         ElMessage.success(`成功导出 ${res.count} 条库存记录到 ${res.filePath}`);
       } else {
@@ -40,7 +41,7 @@ export function useDataExport() {
 
   const handleExportLabels = async () => {
     try {
-      const res = await (window as any).electronAPI.exportLabels();
+      const res = await dataApi.exportLabels();
       if (res.success) {
         ElMessage.success(`成功导出 ${res.count} 条标签记录到 ${res.filePath}`);
       } else {

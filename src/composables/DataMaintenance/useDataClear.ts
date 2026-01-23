@@ -1,5 +1,6 @@
 import { ref } from "vue";
 import { ElMessage } from "element-plus";
+import { dataApi } from "@/api";
 /**
  * 数据清理 Composable
  * 负责货品数据和库存数据的清理
@@ -15,12 +16,12 @@ export function useDataClear(onClearSuccess: () => void) {
   const handleClearProducts = async () => {
     clearProductsConfirmVisible.value = false;
     try {
-      const res = await (window as any).electronAPI.clearProducts();
+      const res = await dataApi.clearProducts();
       if (res.success) {
         ElMessage.success("货品数据已成功删除");
         onClearSuccess();
       } else {
-        ElMessage.error("删除货品数据失败: " + (res.error || "未知错误"));
+        ElMessage.error("删除货品数据失败");
       }
     } catch (e: any) {
       console.error("删除货品数据出错:", e);
@@ -35,12 +36,12 @@ export function useDataClear(onClearSuccess: () => void) {
   const handleClearInventory = async () => {
     clearInventoryConfirmVisible.value = false;
     try {
-      const res = await (window as any).electronAPI.clearInventory();
+      const res = await dataApi.clearInventory();
       if (res.success) {
         ElMessage.success("库存数据已成功删除");
         onClearSuccess();
       } else {
-        ElMessage.error("删除库存数据失败: " + (res.error || "未知错误"));
+        ElMessage.error("删除库存数据失败");
       }
     } catch (e: any) {
       console.error("删除库存数据出错:", e);

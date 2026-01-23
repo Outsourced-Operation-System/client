@@ -1,5 +1,6 @@
 import { ref } from "vue";
 import { ElMessage } from "element-plus";
+import { dataApi } from "@/api";
 /**
  * 数据上传 Composable
  * 负责货品数据、库存数据和标签数据的上传
@@ -10,7 +11,7 @@ export type UploadMode = "update" | "overwrite";
 export function useDataUpload(onUploadSuccess: () => void) {
   const uploadDialogVisible = ref(false);
   const overwriteConfirmVisible = ref(false);
-  const pendingFile = ref<any>(null);
+  const pendingFile = ref<File | null>(null);
   const pendingType = ref<UploadType>("product");
 
   // 处理货品文件选择
@@ -19,7 +20,7 @@ export function useDataUpload(onUploadSuccess: () => void) {
     pendingType.value = "product";
 
     try {
-      const res = await (window as any).electronAPI.getStats();
+      const res = await dataApi.getStats();
       if (res.count === 0) {
         handleUploadWithMode("overwrite");
       } else {
@@ -36,7 +37,7 @@ export function useDataUpload(onUploadSuccess: () => void) {
     pendingType.value = "inventory";
 
     try {
-      const res = await (window as any).electronAPI.getStats();
+      const res = await dataApi.getStats();
       if (res.inventoryCount === 0) {
         handleUploadWithMode("overwrite");
       } else {
@@ -60,7 +61,7 @@ export function useDataUpload(onUploadSuccess: () => void) {
     pendingType.value = "combined";
 
     try {
-      const res = await (window as any).electronAPI.getStats();
+      const res = await dataApi.getStats();
       // 如果任一表为空，直接覆盖上传
       if (res.count === 0 || res.inventoryCount === 0) {
         handleUploadWithMode("overwrite");
@@ -88,39 +89,25 @@ export function useDataUpload(onUploadSuccess: () => void) {
       return;
     }
 
-    const filePath = (window as any).electronAPI.getPathForFile(
-      pendingFile.value
-    );
-
-    if (!filePath) {
-      console.error(
-        "无法获取文件路径，pendingFile 对象结构:",
-        JSON.stringify(pendingFile.value, null, 2)
-      );
-      ElMessage.error("无法获取文件路径，请重新选择文件");
-      pendingFile.value = null;
-      return;
-    }
-
     try {
-      const res = await (window as any).electronAPI.importData(
+      const res = await dataApi.importData(
         pendingType.value,
-        filePath,
-        mode
+        pendingFile.value,
+        mode,
       );
       if (res.success) {
         const modeText = "更新";
         if (pendingType.value === "combined") {
           ElMessage.success(
-            `成功导入合表数据！货品: ${res.productCount} 条，库存: ${res.inventoryCount} 条，标签: ${res.labelCount} 条`
+            `成功导入合表数据！货品: ${res.productCount} 条，库存: ${res.inventoryCount} 条，标签: ${res.labelCount} 条`,
           );
         } else {
           const typeText =
             pendingType.value === "product"
               ? "商品"
               : pendingType.value === "inventory"
-              ? "库存"
-              : "标签";
+                ? "库存"
+                : "标签";
           ElMessage.success(`成功${modeText}了 ${res.count} 条${typeText}数据`);
         }
         onUploadSuccess();

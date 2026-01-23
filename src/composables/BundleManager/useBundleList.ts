@@ -1,5 +1,6 @@
 import { ref, computed } from "vue";
 import { ElMessage } from "element-plus";
+import { bundleApi } from "@/api";
 import type { BundleFilters } from "./useBundleFilter";
 
 /**
@@ -49,7 +50,7 @@ export function useBundleList() {
   const fetchBundles = async (filters?: BundleFilters) => {
     loading.value = true;
     try {
-      const res = await (window as any).electronAPI.getBundles({
+      const res = await bundleApi.getBundles({
         ...filters,
         page: currentPage.value,
         pageSize: pageSize.value,
@@ -100,9 +101,9 @@ export function useBundleList() {
   // 获取子货组
   const fetchChildBundles = async (parentId: number) => {
     try {
-      const res = await (window as any).electronAPI.getChildBundles(parentId);
-      if (res.success && res.data) {
-        return res.data.map((item: BundleRecord) => ({
+      const res = await bundleApi.getChildBundles(parentId);
+      if (Array.isArray(res)) {
+        return res.map((item: BundleRecord) => ({
           ...item,
           isChild: true,
         }));
@@ -124,7 +125,7 @@ export function useBundleList() {
       row.expanded = false;
       expandedMap.value.set(row.id, false);
       bundleList.value = bundleList.value.filter(
-        (item) => item.parent_id !== row.id
+        (item) => item.parent_id !== row.id,
       );
     } else {
       // 展开：加载并插入子货组

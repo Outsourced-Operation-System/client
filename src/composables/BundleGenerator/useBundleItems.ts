@@ -1,5 +1,6 @@
 import { ref, computed } from "vue";
 import { ElMessage } from "element-plus";
+import { productApi } from "@/api";
 
 export interface BundleItem {
   uid: string; // 唯一标识，支持同一商品多次添加
@@ -89,17 +90,23 @@ export function useBundleItems() {
   const refreshItemsStock = async () => {
     if (bundleItems.value.length === 0) return;
 
-    const skus = bundleItems.value.map((item) => item.tu);
+    const skus = bundleItems.value
+      .map((item) => item.tu)
+      .filter((tu): tu is string => tu !== undefined);
+    if (skus.length === 0) return;
+
     try {
-      const res = await (window as any).electronAPI.getBatchSkuStock(skus);
-      if (res && res.data) {
+      const res = await productApi.getBatchSkuStock(skus);
+      if (res) {
         const stockMap = new Map(
-          res.data.map((item: any) => [item.sku, item.qty_available])
+          Object.entries(res).map(([sku, qty]) => [sku, qty]),
         );
         bundleItems.value.forEach((item) => {
-          const newStock = stockMap.get(item.tu);
-          if (newStock !== undefined && newStock !== null) {
-            item.qty_available = Number(newStock);
+          if (item.tu) {
+            const newStock = stockMap.get(item.tu);
+            if (newStock !== undefined && newStock !== null) {
+              item.qty_available = Number(newStock);
+            }
           }
         });
       }
@@ -127,7 +134,7 @@ export function useBundleItems() {
   // 计算总货值
   const totalValue = computed(() => {
     return (parseFloat(mainValue.value) + parseFloat(giftValue.value)).toFixed(
-      2
+      2,
     );
   });
 
@@ -135,7 +142,7 @@ export function useBundleItems() {
   const getArticleCodes = computed(() => {
     return [
       ...new Set(
-        bundleItems.value.map((item) => item.article_code).filter(Boolean)
+        bundleItems.value.map((item) => item.article_code).filter(Boolean),
       ),
     ];
   });

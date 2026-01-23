@@ -1,5 +1,6 @@
 import { ref } from "vue";
 import { ElMessage } from "element-plus";
+import { backupApi } from "@/api";
 
 /**
  * 数据备份 Composable
@@ -27,12 +28,12 @@ export function useBackup(onBackupSuccess: () => void) {
   const handleBackup = async () => {
     backupConfirmVisible.value = false;
     try {
-      const res = await (window as any).electronAPI.backupDatabase();
+      const res = await backupApi.backupDatabase();
       if (res.success) {
         ElMessage.success("数据备份成功");
         onBackupSuccess();
       } else {
-        ElMessage.error("备份失败: " + (res.error || "未知错误"));
+        ElMessage.error("备份失败");
       }
     } catch (e: any) {
       console.error("备份出错:", e);
@@ -42,12 +43,16 @@ export function useBackup(onBackupSuccess: () => void) {
   // 显示备份列表
   const showBackupList = async () => {
     try {
-      const res = await (window as any).electronAPI.getBackups();
-      if (res.success) {
-        backupList.value = res.backups;
+      const res = await backupApi.getBackups();
+      if (Array.isArray(res)) {
+        backupList.value = res.map((item: any) => ({
+          filename: item.filename,
+          timestamp: item.timestamp || Date.parse(item.createdAt),
+          datetime: item.createdAt,
+        }));
         backupListVisible.value = true;
       } else {
-        ElMessage.error("获取备份列表失败: " + (res.error || "未知错误"));
+        ElMessage.error("获取备份列表失败");
       }
     } catch (e: any) {
       console.error("获取备份列表出错:", e);
@@ -65,19 +70,23 @@ export function useBackup(onBackupSuccess: () => void) {
     if (!selectedBackup.value) return;
 
     try {
-      const res = await (window as any).electronAPI.restoreBackup(
-        selectedBackup.value.timestamp
+      const res = await backupApi.restoreBackup(
+        String(selectedBackup.value.timestamp),
       );
       if (res.success) {
         ElMessage.success("数据恢复成功，已自动备份当前数据");
         onBackupSuccess();
         // 刷新备份列表
-        const backupRes = await (window as any).electronAPI.getBackups();
-        if (backupRes.success) {
-          backupList.value = backupRes.backups;
+        const backupRes = await backupApi.getBackups();
+        if (Array.isArray(backupRes)) {
+          backupList.value = backupRes.map((item: any) => ({
+            filename: item.filename,
+            timestamp: item.timestamp || Date.parse(item.createdAt),
+            datetime: item.createdAt,
+          }));
         }
       } else {
-        ElMessage.error("恢复失败: " + (res.error || "未知错误"));
+        ElMessage.error("恢复失败");
       }
     } catch (e: any) {
       console.error("恢复出错:", e);
@@ -97,19 +106,23 @@ export function useBackup(onBackupSuccess: () => void) {
     if (!selectedBackup.value) return;
 
     try {
-      const res = await (window as any).electronAPI.deleteBackup(
-        selectedBackup.value.timestamp
+      const res = await backupApi.deleteBackup(
+        String(selectedBackup.value.timestamp),
       );
       if (res.success) {
         ElMessage.success("备份已删除");
         // 刷新备份列表
-        const backupRes = await (window as any).electronAPI.getBackups();
-        if (backupRes.success) {
-          backupList.value = backupRes.backups;
+        const backupRes = await backupApi.getBackups();
+        if (Array.isArray(backupRes)) {
+          backupList.value = backupRes.map((item: any) => ({
+            filename: item.filename,
+            timestamp: item.timestamp || Date.parse(item.createdAt),
+            datetime: item.createdAt,
+          }));
         }
         onBackupSuccess();
       } else {
-        ElMessage.error("删除失败: " + (res.error || "未知错误"));
+        ElMessage.error("删除失败");
       }
     } catch (e: any) {
       console.error("删除备份出错:", e);

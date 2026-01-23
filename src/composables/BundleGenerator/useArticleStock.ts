@@ -1,4 +1,5 @@
 import { ref } from "vue";
+import { productApi } from "@/api";
 
 /**
  * A码库存管理 Composable
@@ -17,15 +18,13 @@ export function useArticleStock() {
 
   const fetchArticleStockTotal = async (
     articleCode: string,
-    forceRefresh = false
+    forceRefresh = false,
   ) => {
     if (!articleCode) return;
     if (!forceRefresh && articleStockCache.value.has(articleCode)) return;
 
     try {
-      const res = await (window as any).electronAPI.getArticleStockTotal(
-        articleCode
-      );
+      const res = await productApi.getArticleStockTotal(articleCode);
       if (res && typeof res.total === "number") {
         articleStockCache.value.set(articleCode, res.total);
       }
@@ -37,7 +36,7 @@ export function useArticleStock() {
   // 批量获取 A码 库存总数
   const fetchBatchArticleStock = (
     articleCodes: string[],
-    forceRefresh = false
+    forceRefresh = false,
   ) => {
     articleCodes.forEach((code) => {
       if (code) fetchArticleStockTotal(code, forceRefresh);

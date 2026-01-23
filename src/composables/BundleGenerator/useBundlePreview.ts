@@ -1,5 +1,6 @@
 import { ref, watch } from "vue";
 import { ElMessage } from "element-plus";
+import { bundleApi } from "@/api";
 
 // 定义库存不足商品类型
 export interface InsufficientItem {
@@ -27,7 +28,7 @@ export function useBundlePreview() {
       const month = String(now.getMonth() + 1).padStart(2, "0");
       const day = String(now.getDate()).padStart(2, "0");
       return `${year}-${month}-${day}`;
-    })()
+    })(),
   );
   const createTime = ref("");
   const virtualCode = ref("");
@@ -57,7 +58,7 @@ export function useBundlePreview() {
         // const day = String(now.getDate()).padStart(2, "0");
 
         // 获取今天已有的货组数量
-        const res = await (window as any).electronAPI.getTodayBundleCount();
+        const res = await bundleApi.getTodayBundleCount();
         const sequence = String((res.count || 0) + 1).padStart(6, "0");
 
         code = `BD${sequence}`;
@@ -95,7 +96,7 @@ export function useBundlePreview() {
     // 生成创建时间和虚拟编码
     const now = new Date();
     createTime.value = `${now.getFullYear()}/${String(
-      now.getMonth() + 1
+      now.getMonth() + 1,
     ).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")}`;
     virtualCode.value = await generateVirtualCode(bundleItems);
     if (!hasGenerated.value) ElMessage.success("请在右侧填写货组信息并保存");
@@ -117,18 +118,18 @@ export function useBundlePreview() {
 
   // 检查库存是否充足
   const checkStockAvailability = async (
-    bundleItems: any[]
+    bundleItems: any[],
   ): Promise<{
     sufficient: boolean;
     insufficientItems: InsufficientItem[];
   }> => {
     try {
-      const res = await (window as any).electronAPI.checkStockAvailability(
+      const res = await bundleApi.checkStockAvailability(
         bundleItems.map((item) => ({
           sku: item.sku || item.tu,
           article_code: item.article_code,
           product_name_cn: item.product_name_cn,
-        }))
+        })),
       );
       if (res.success) {
         return {
@@ -145,10 +146,10 @@ export function useBundlePreview() {
 
   // 检查货组名称是否已存在
   const checkBundleNameExists = async (
-    name: string
+    name: string,
   ): Promise<{ exists: boolean }> => {
     try {
-      const res = await (window as any).electronAPI.checkBundleNameExists(name);
+      const res = await bundleApi.checkBundleNameExists(name);
       if (res.success) {
         return { exists: res.exists };
       }
@@ -165,7 +166,7 @@ export function useBundlePreview() {
     mainValue: string,
     giftValue: string,
     totalValue: string,
-    skipNameCheck: boolean = false
+    skipNameCheck: boolean = false,
   ): Promise<
     | { success: true }
     | {
@@ -244,7 +245,7 @@ export function useBundlePreview() {
     };
 
     try {
-      const res = await (window as any).electronAPI.createBundle(bundleData);
+      const res = await bundleApi.createBundle(bundleData);
       if (res.success) {
         ElMessage.success(`货组保存成功！虚拟编码：${virtualCode.value}`);
         return { success: true };

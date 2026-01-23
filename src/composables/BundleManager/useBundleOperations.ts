@@ -1,4 +1,5 @@
 import { ElMessage, ElMessageBox } from "element-plus";
+import { bundleApi } from "@/api";
 import type { BundleRecord } from "./useBundleList";
 
 /**
@@ -18,7 +19,7 @@ export function useBundleOperations() {
         type: "warning",
       });
 
-      const res = await (window as any).electronAPI.deleteBundle(row.id);
+      const res = await bundleApi.deleteBundle(row.id);
       if (res && res.success) {
         ElMessage.success("删除成功");
         onSuccess();
@@ -35,7 +36,7 @@ export function useBundleOperations() {
   // 批量删除货组
   const handleBatchDelete = async (
     bundles: BundleRecord[],
-    onSuccess: () => void
+    onSuccess: () => void,
   ) => {
     if (bundles.length === 0) {
       ElMessage.warning("请先选择要删除的货组");
@@ -50,11 +51,11 @@ export function useBundleOperations() {
           confirmButtonText: "确定",
           cancelButtonText: "取消",
           type: "warning",
-        }
+        },
       );
 
       const ids = bundles.map((b) => b.id);
-      const res = await (window as any).electronAPI.batchDeleteBundles(ids);
+      const res = await bundleApi.batchDeleteBundles(ids);
 
       if (res && res.success) {
         ElMessage.success(`成功删除 ${bundles.length} 个货组`);
@@ -73,7 +74,7 @@ export function useBundleOperations() {
   // 批量导出货组
   const handleBatchExport = async (
     bundles: BundleRecord[],
-    exportOptions: { exportSku: boolean; exportVirtual: boolean }
+    exportOptions: { exportSku: boolean; exportVirtual: boolean },
   ) => {
     console.log("==== 前端：开始批量导出 ====");
     console.log("导出选项:", exportOptions);
@@ -93,10 +94,7 @@ export function useBundleOperations() {
 
       if (exportOptions.exportSku) {
         console.log("前端：调用 SKU 导出...");
-        const res = await (window as any).electronAPI.batchExportBundles(
-          ids,
-          "sku"
-        );
+        const res = await bundleApi.batchExportBundles(ids, "sku");
         console.log("前端：SKU 导出结果:", res);
         // 如果用户取消，不算失败
         if (res && res.success) {
@@ -108,10 +106,7 @@ export function useBundleOperations() {
 
       if (exportOptions.exportVirtual) {
         console.log("前端：调用虚拟组套导出...");
-        const res = await (window as any).electronAPI.batchExportBundles(
-          ids,
-          "virtual"
-        );
+        const res = await bundleApi.batchExportBundles(ids, "virtual");
         console.log("前端：虚拟组套导出结果:", res);
         // 如果用户取消，不算失败
         if (res && res.success) {

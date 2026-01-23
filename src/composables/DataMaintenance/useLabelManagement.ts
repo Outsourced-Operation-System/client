@@ -1,5 +1,6 @@
 import { ref } from "vue";
 import { ElMessage } from "element-plus";
+import { labelApi } from "@/api";
 
 export interface Label {
   id: number;
@@ -30,13 +31,28 @@ export function useLabelManagement() {
   // 获取所有标签
   const fetchLabels = async () => {
     try {
-      const res = await (window as any).electronAPI.getAllLabels();
-      if (res.success) {
-        labels.value = res.labels;
-      } else {
-        console.error("获取标签失败:", res.error);
-        ElMessage.error("获取标签失败: " + (res.error || "未知错误"));
-      }
+      const res = await labelApi.getAllLabels();
+      // 转换数据格式
+      const transformLabels = (data: Record<string, string[]>): Labels => {
+        const result: Labels = {
+          category: [],
+          productType: [],
+          bySku: [],
+          fragrance: [],
+        };
+        Object.entries(data).forEach(([field, values]) => {
+          const key = field as keyof Labels;
+          if (key in result && Array.isArray(values)) {
+            result[key] = values.map((value, index) => ({
+              id: index,
+              value,
+              updatedAt: "",
+            }));
+          }
+        });
+        return result;
+      };
+      labels.value = transformLabels(res);
     } catch (e: any) {
       console.error("获取标签出错:", e);
       ElMessage.error("获取标签出错: " + (e?.message || String(e)));
@@ -52,7 +68,7 @@ export function useLabelManagement() {
   // 添加标签
   const handleAddLabel = async (field: string, value: string) => {
     try {
-      const res = await (window as any).electronAPI.addLabel(field, value);
+      const res = await labelApi.addLabel(field, value);
       if (res.success) {
         ElMessage.success("标签添加成功");
         await fetchLabels();
@@ -81,10 +97,7 @@ export function useLabelManagement() {
         return;
       }
 
-      const res = await (window as any).electronAPI.deleteLabel(
-        field,
-        label.value
-      );
+      const res = await labelApi.deleteLabel(field, label.value);
       if (res.success) {
         ElMessage.success(`成功删除标签，影响 ${res.affectedRows} 条记录`);
         await fetchLabels();
