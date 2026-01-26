@@ -25,6 +25,13 @@
                     </el-icon>
                     <span>数据管理</span>
                 </el-menu-item>
+                <!-- 开发者入口 - 可通过 isDeveloperMode 控制显示 -->
+                <el-menu-item v-if="showDeveloperMenu" index="/developer" class="developer-menu-item">
+                    <el-icon>
+                        <Tools />
+                    </el-icon>
+                    <span>开发者</span>
+                </el-menu-item>
             </el-menu>
             <div class="collapse-btn" @click="toggleCollapse">
                 <el-icon>
@@ -48,11 +55,22 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Box, List, DataLine, DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
+import { Box, List, DataLine, DArrowLeft, DArrowRight, Tools } from '@element-plus/icons-vue'
+import { useDeveloperMode } from '../composables/useDeveloperMode'
 
 const route = useRoute()
 const activeMenu = computed(() => route.path)
 const isCollapse = ref(false)
+
+// 开发者模式控制
+const { isDeveloperMode } = useDeveloperMode()
+
+// 控制开发者菜单显示
+// 后续可以在这里添加更多鉴权逻辑
+const showDeveloperMenu = computed(() => {
+    // 开发环境始终显示，或者开发者模式开启时显示
+    return import.meta.env.DEV || isDeveloperMode.value
+})
 
 const toggleCollapse = () => {
     isCollapse.value = !isCollapse.value
@@ -94,10 +112,18 @@ const toggleCollapse = () => {
 .el-menu-vertical {
     border-right: none;
     flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .el-menu-vertical:not(.el-menu--collapse) .el-menu-item span {
     font-size: 16px;
+}
+
+/* 开发者菜单项样式 */
+.developer-menu-item {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: auto;
 }
 
 .collapse-btn {

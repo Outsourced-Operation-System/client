@@ -1,8 +1,12 @@
 /**
  * HTTP 请求基础模块
  */
+import { getApiBaseUrl } from "../composables/useApiConfig";
 
-// API 基础配置
+// API 基础配置 - 动态获取
+export const getBaseUrl = () => getApiBaseUrl();
+
+// 兼容旧代码的导出（不推荐使用，请使用 getBaseUrl()）
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
 
@@ -11,7 +15,7 @@ export async function request<T>(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${getApiBaseUrl()}${endpoint}`;
 
   const defaultHeaders: HeadersInit = {
     "Content-Type": "application/json",

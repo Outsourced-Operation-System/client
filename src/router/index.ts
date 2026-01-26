@@ -5,6 +5,7 @@ import BundleGenerator from "../views/BundleGenerator.vue";
 import BundleManager from "../views/BundleManager.vue";
 import BundleProducts from "../views/BundleProducts.vue";
 import DataMaintenance from "../views/DataMaintenance.vue";
+import DeveloperSettings from "../views/DeveloperSettings.vue";
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -35,6 +36,15 @@ const routes: Array<RouteRecordRaw> = [
         name: "DataMaintenance",
         component: DataMaintenance,
         meta: { title: "数据管理" },
+      },
+      {
+        path: "developer",
+        name: "DeveloperSettings",
+        component: DeveloperSettings,
+        meta: {
+          title: "开发者设置",
+          requiresDeveloper: true, // 标记需要开发者权限
+        },
       },
     ],
   },
