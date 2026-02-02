@@ -12,7 +12,7 @@
             </div>
             <div class="status-item">
                 <span class="label">货品最后更新时间：</span>
-                <span class="value">{{ stats.goodsLastUpdate }}</span>
+                <span class="value">{{ stats.productLastUpdate }}</span>
             </div>
             <div class="status-item">
                 <span class="label">库存最后更新时间：</span>

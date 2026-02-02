@@ -7,7 +7,7 @@ import { getApiBaseUrl } from "@/composables/useApiConfig";
 export interface DataStats {
   count: number;
   inventoryCount: number;
-  goodsLastUpdate: string | null;
+  productLastUpdate: string | null;
   inventoryLastUpdate: string | null;
   labelLastUpdate: string | null;
 }

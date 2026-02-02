@@ -6,7 +6,7 @@ import { dataApi, backupApi } from "@/api";
  */
 export interface DataStats {
   count: number;
-  goodsLastUpdate: string;
+  productLastUpdate: string;
   inventoryLastUpdate: string;
   labelLastUpdate: string;
   lastBackupTime: string;
@@ -15,7 +15,7 @@ export interface DataStats {
 export function useDataStats() {
   const stats = ref<DataStats>({
     count: 0,
-    goodsLastUpdate: "-",
+    productLastUpdate: "-",
     inventoryLastUpdate: "-",
     labelLastUpdate: "-",
     lastBackupTime: "-",
@@ -24,13 +24,22 @@ export function useDataStats() {
   const fetchStats = async () => {
     try {
       const res = await dataApi.getStats();
-      const backupRes = await backupApi.getLastBackupTime();
+      console.log("API Response:", res);
+
+      let lastBackupTime = "-";
+      try {
+        const backupRes = await backupApi.getLastBackupTime();
+        lastBackupTime = backupRes.lastBackupTime || "-";
+      } catch (err) {
+        console.error("Failed to fetch backup time:", err);
+      }
+
       stats.value = {
         count: res.count,
-        goodsLastUpdate: res.goodsLastUpdate || "-",
+        productLastUpdate: res.productLastUpdate || "-",
         inventoryLastUpdate: res.inventoryLastUpdate || "-",
         labelLastUpdate: res.labelLastUpdate || "-",
-        lastBackupTime: backupRes.lastBackupTime || "-",
+        lastBackupTime: lastBackupTime,
       };
     } catch (e) {
       console.error(e);
