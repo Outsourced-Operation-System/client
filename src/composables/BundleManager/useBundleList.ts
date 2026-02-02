@@ -52,7 +52,7 @@ export function useBundleList() {
     id: item.id,
     virtual_code: item.virtual_code,
     name: item.name,
-    create_date: item.created_at, // API 使用 created_at，本地使用 create_date
+    create_date: item.created_at || (item as any).create_date, // 兼容 create_date
     end_date: item.end_date,
     usage_type: item.usage_type,
     total_value: item.total_value,
@@ -74,20 +74,24 @@ export function useBundleList() {
   const fetchBundles = async (filters?: BundleFilters) => {
     loading.value = true;
     try {
-      const res = await bundleApi.getBundles({
+      const res: any = await bundleApi.getBundles({
         ...filters,
         page: currentPage.value,
         pageSize: pageSize.value,
       });
-
+      console.log(res);
       let newList: BundleRecord[] = [];
-      if (res && res.list) {
-        newList = res.list.map((item) => ({
+
+      // 兼容多种返回格式 list/items/records/data
+      const listData = res?.list || res?.items || res?.records || res?.data;
+
+      if (listData && Array.isArray(listData)) {
+        newList = listData.map((item: any) => ({
           ...mapApiRecord(item),
           expanded: expandedMap.value.get(item.id) || false,
           children: [],
         }));
-        total.value = res.total || 0;
+        total.value = res.total || listData.length;
       } else if (Array.isArray(res)) {
         newList = (res as ApiBundleRecord[]).map((item) => ({
           ...mapApiRecord(item),
