@@ -1,7 +1,24 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
+const fs = require("fs");
 
 const NODE_ENV = process.env.NODE_ENV;
+
+// 处理保存文件对话框
+ipcMain.handle("show-save-dialog", async (event, options) => {
+  const result = await dialog.showSaveDialog(options);
+  return result;
+});
+
+// 处理保存文件
+ipcMain.handle("save-file", async (event, { filePath, buffer }) => {
+  try {
+    fs.writeFileSync(filePath, Buffer.from(buffer));
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
 
 function createWindow() {
   const win = new BrowserWindow({

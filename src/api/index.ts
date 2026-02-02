@@ -3,7 +3,7 @@
  */
 
 // 导出请求方法
-export { request, get, post, put, del, upload, API_BASE_URL } from "./request";
+export { request, get, post, put, del, upload } from "./request";
 
 // 导出产品 API
 export { productApi } from "./product";

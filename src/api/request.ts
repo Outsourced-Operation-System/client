@@ -7,8 +7,8 @@ import { getApiBaseUrl } from "../composables/useApiConfig";
 export const getBaseUrl = () => getApiBaseUrl();
 
 // 兼容旧代码的导出（不推荐使用，请使用 getBaseUrl()）
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
+// export const API_BASE_URL =
+//   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
 
 // 通用请求方法
 export async function request<T>(
@@ -97,7 +97,7 @@ export async function upload<T>(
   file: File,
   additionalData?: Record<string, any>,
 ): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${getApiBaseUrl()}${endpoint}`;
   const formData = new FormData();
   formData.append("file", file);
 

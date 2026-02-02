@@ -1,7 +1,8 @@
 /**
  * 数据维护相关 API
  */
-import { get, post, del, upload } from "./request";
+import { get, del, upload } from "./request";
+import { getApiBaseUrl } from "@/composables/useApiConfig";
 
 export interface DataStats {
   count: number;
@@ -41,39 +42,39 @@ export const dataApi = {
   },
 
   /**
-   * 导出产品数据
+   * 导出产品数据 - 返回 Blob 数据
    */
-  exportProducts: (): Promise<{
-    success: boolean;
-    filePath?: string;
-    count?: number;
-    error?: string;
-  }> => {
-    return post("/data/export/products");
+  exportProducts: async (): Promise<Blob> => {
+    const url = `${getApiBaseUrl()}/data/export/products`;
+    const response = await fetch(url, { method: "POST" });
+    if (!response.ok) {
+      throw new Error(`导出失败: ${response.statusText}`);
+    }
+    return response.blob();
   },
 
   /**
-   * 导出库存数据
+   * 导出库存数据 - 返回 Blob 数据
    */
-  exportInventory: (): Promise<{
-    success: boolean;
-    filePath?: string;
-    count?: number;
-    error?: string;
-  }> => {
-    return post("/data/export/inventory");
+  exportInventory: async (): Promise<Blob> => {
+    const url = `${getApiBaseUrl()}/data/export/inventory`;
+    const response = await fetch(url, { method: "POST" });
+    if (!response.ok) {
+      throw new Error(`导出失败: ${response.statusText}`);
+    }
+    return response.blob();
   },
 
   /**
-   * 导出标签数据
+   * 导出标签数据 - 返回 Blob 数据
    */
-  exportLabels: (): Promise<{
-    success: boolean;
-    filePath?: string;
-    count?: number;
-    error?: string;
-  }> => {
-    return post("/data/export/labels");
+  exportLabels: async (): Promise<Blob> => {
+    const url = `${getApiBaseUrl()}/data/export/labels`;
+    const response = await fetch(url, { method: "POST" });
+    if (!response.ok) {
+      throw new Error(`导出失败: ${response.statusText}`);
+    }
+    return response.blob();
   },
 
   /**
