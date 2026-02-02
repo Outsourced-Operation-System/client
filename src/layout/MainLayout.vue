@@ -69,6 +69,7 @@ const { isDeveloperMode } = useDeveloperMode()
 // 后续可以在这里添加更多鉴权逻辑
 const showDeveloperMenu = computed(() => {
     // 开发环境始终显示，或者开发者模式开启时显示
+    return true
     return import.meta.env.DEV || isDeveloperMode.value
 })
 

@@ -1,6 +1,7 @@
 import { ref, computed } from "vue";
 import { ElMessage } from "element-plus";
 import { bundleApi } from "@/api";
+import type { BundleRecord as ApiBundleRecord } from "@/api/bundle";
 import type { BundleFilters } from "./useBundleFilter";
 
 /**
@@ -46,6 +47,29 @@ export function useBundleList() {
   // 保存展开状态的Map
   const expandedMap = ref<Map<number, boolean>>(new Map());
 
+  // 将 API 返回的记录转换为本地格式
+  const mapApiRecord = (item: ApiBundleRecord): BundleRecord => ({
+    id: item.id,
+    virtual_code: item.virtual_code,
+    name: item.name,
+    create_date: item.created_at, // API 使用 created_at，本地使用 create_date
+    end_date: item.end_date,
+    usage_type: item.usage_type,
+    total_value: item.total_value,
+    main_value: item.main_value,
+    gift_value: item.gift_value,
+    category: item.category,
+    product_type: item.product_type,
+    by_sku: item.by_sku,
+    fragrance: item.fragrance,
+    status: item.status,
+    // 以下字段可能来自扩展响应
+    parent_id: (item as any).parent_id,
+    children_count: (item as any).children_count,
+    update_time: (item as any).update_time,
+    last_update_time: (item as any).last_update_time,
+  });
+
   // 获取货组列表
   const fetchBundles = async (filters?: BundleFilters) => {
     loading.value = true;
@@ -57,16 +81,16 @@ export function useBundleList() {
       });
 
       let newList: BundleRecord[] = [];
-      if (res && res.data) {
-        newList = res.data.map((item: BundleRecord) => ({
-          ...item,
+      if (res && res.list) {
+        newList = res.list.map((item) => ({
+          ...mapApiRecord(item),
           expanded: expandedMap.value.get(item.id) || false,
           children: [],
         }));
         total.value = res.total || 0;
       } else if (Array.isArray(res)) {
-        newList = res.map((item: BundleRecord) => ({
-          ...item,
+        newList = (res as ApiBundleRecord[]).map((item) => ({
+          ...mapApiRecord(item),
           expanded: expandedMap.value.get(item.id) || false,
           children: [],
         }));
@@ -99,12 +123,14 @@ export function useBundleList() {
   };
 
   // 获取子货组
-  const fetchChildBundles = async (parentId: number) => {
+  const fetchChildBundles = async (
+    parentId: number,
+  ): Promise<BundleRecord[]> => {
     try {
       const res = await bundleApi.getChildBundles(parentId);
       if (Array.isArray(res)) {
-        return res.map((item: BundleRecord) => ({
-          ...item,
+        return res.map((item) => ({
+          ...mapApiRecord(item),
           isChild: true,
         }));
       }

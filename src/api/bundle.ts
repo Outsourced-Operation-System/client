@@ -179,7 +179,7 @@ export const bundleApi = {
   batchExportBundles: (
     ids: number[],
     exportType: "sku" | "virtual",
-  ): Promise<{ success: boolean; filePath?: string }> => {
+  ): Promise<{ success: boolean; filePath?: string; canceled?: boolean }> => {
     return post("/bundles/batch-export", { ids, exportType });
   },
 
