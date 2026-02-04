@@ -18,7 +18,7 @@
         </div>
 
         <!-- 头部区域：包含 Logo 和 Tabs -->
-        <div class="login-header">
+        <div class="login-header" v-if="!showSettings">
             <div class="logo-area">
                 <div class="logo-icon">
                     <el-icon :size="32" color="#fff">
@@ -33,7 +33,8 @@
 
         <!-- 表单区域 -->
         <div class="login-body">
-            <div class="form-container">
+            <!-- 登录表单 -->
+            <div class="form-container" v-if="!showSettings">
                 <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" @submit.prevent="handleLogin"
                     class="custom-form" hide-required-asterisk>
                     <el-form-item prop="username">
@@ -50,12 +51,63 @@
                         </el-button>
                     </div>
                 </el-form>
+
+                <!-- 后端设置入口 -->
+                <div class="settings-link" @click="openSettings">
+                    后端IP设置
+                </div>
+            </div>
+
+            <!-- 后端设置页面 -->
+            <div class="settings-container" v-else>
+                <div class="settings-header">
+                    <el-button link @click="backToLogin" class="back-btn">
+                        <el-icon>
+                            <ArrowLeft />
+                        </el-icon>
+                        返回登录
+                    </el-button>
+                    <span class="settings-title">后端IP设置</span>
+                </div>
+
+                <el-form :model="apiForm" class="custom-form api-form">
+                    <el-form-item>
+                        <el-input v-model="apiForm.apiUrl" placeholder="请输入后端IP地址" clearable
+                            @keyup.enter="handleSaveApiConfig">
+                            <template #prepend>http://</template>
+                        </el-input>
+                    </el-form-item>
+
+                    <el-form-item>
+                        <el-space :size="12" style="width: 100%">
+                            <el-button @click="handleResetConfig" round class="reset-btn">
+                                <el-icon>
+                                    <RefreshLeft />
+                                </el-icon>
+                                恢复默认
+                            </el-button>
+                            <el-button type="primary" @click="handleSaveApiConfig" :loading="saving" round
+                                class="save-btn">
+                                <el-icon>
+                                    <Check />
+                                </el-icon>
+                                保存并测试
+                            </el-button>
+                        </el-space>
+                    </el-form-item>
+
+                    <el-form-item v-if="connectionStatus.message" class="status-item">
+                        <el-tag :type="connectionStatus.type">
+                            {{ connectionStatus.message }}
+                        </el-tag>
+                    </el-form-item>
+                </el-form>
             </div>
         </div>
 
         <!-- 底部信息 -->
         <div class="login-footer">
-            v0.1.0
+            v{{ appVersion }}
         </div>
     </div>
 </template>
@@ -64,17 +116,110 @@
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { User, Lock, Box, Close, Minus } from '@element-plus/icons-vue'
+import { User, Lock, Box, Close, Minus, ArrowLeft, Check, RefreshLeft } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { login } from '../api/auth'
+import { useApiConfig } from '../composables/useApiConfig'
 
+const DEFAULT_API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
 const router = useRouter()
 const authStore = useAuthStore()
+const { apiBaseUrl, setApiBaseUrl, testConnection } = useApiConfig()
+const appVersion = __APP_VERSION__
 
 // 检测是否在 Electron 环境
 const isElectron = computed(() => !!window.electronAPI)
 
 const loading = ref(false)
+
+// 页面切换：登录 / 后端设置
+const showSettings = ref(false)
+
+// 后端设置相关
+const apiForm = reactive({
+    apiUrl: ''
+})
+const saving = ref(false)
+const connectionStatus = reactive<{ type: 'success' | 'danger' | 'info' | 'warning'; message: string }>({
+    type: 'info',
+    message: ''
+})
+
+// 初始化API配置
+const initApiForm = () => {
+    const url = apiBaseUrl.value
+    apiForm.apiUrl = url.replace(/^https?:\/\//, '')
+}
+
+// 打开设置页面
+const openSettings = () => {
+    initApiForm()
+    showSettings.value = true
+}
+
+// 返回登录页面
+const backToLogin = () => {
+    showSettings.value = false
+    connectionStatus.message = ''
+}
+
+// 保存API配置
+const handleSaveApiConfig = async () => {
+    if (!apiForm.apiUrl.trim()) {
+        ElMessage.warning('请输入有效的 API 地址')
+        return
+    }
+
+    saving.value = true
+    try {
+        let url = apiForm.apiUrl.trim()
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = `http://${url}`
+        }
+
+        setApiBaseUrl(url)
+        ElMessage.success('API 地址配置已保存')
+
+        // 保存后自动测试连接
+        await handleTestApiConnection()
+    } finally {
+        saving.value = false
+    }
+}
+
+// 测试API连接
+const handleTestApiConnection = async () => {
+    connectionStatus.message = '正在测试...'
+    connectionStatus.type = 'info'
+
+    try {
+        let url = apiForm.apiUrl.trim()
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = `http://${url}`
+        }
+
+        const result = await testConnection(url)
+        connectionStatus.message = result.message
+        connectionStatus.type = result.success ? 'success' : 'danger'
+
+        if (result.success) {
+            ElMessage.success('连接测试成功')
+        } else {
+            ElMessage.warning(result.message)
+        }
+    } catch (error: any) {
+        connectionStatus.message = `测试失败: ${error.message}`
+        connectionStatus.type = 'danger'
+        ElMessage.error('连接测试失败')
+    }
+}
+
+// 恢复默认设置
+const handleResetConfig = () => {
+    apiForm.apiUrl = DEFAULT_API_URL
+    connectionStatus.message = ''
+    ElMessage.info('已恢复为默认配置')
+}
 
 // 窗口控制
 const minimizeWindow = () => {
@@ -291,6 +436,74 @@ const handleLogin = async () => {
 
 .submit-btn:active {
     transform: translateY(0);
+}
+
+/* 后端设置入口链接 */
+.settings-link {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 12px;
+    color: #909399;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.settings-link:hover {
+    color: #1890ff;
+}
+
+/* 设置页面样式 */
+.settings-container {
+    padding: 0 10px;
+}
+
+.settings-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 30px;
+    position: relative;
+}
+
+.back-btn {
+    color: #1890ff;
+    font-size: 14px;
+}
+
+.settings-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 16px;
+    font-weight: 500;
+    color: #303133;
+}
+
+.api-form {
+    margin-top: 20px;
+}
+
+.api-form :deep(.el-input-group__prepend) {
+    background-color: #f5f7fa;
+}
+
+.api-form .save-btn {
+    flex: 1;
+}
+
+.api-form .reset-btn {
+    flex: 1;
+    background: #f5f5f5;
+    color: #606266;
+    border: 1px solid #dcdfe6;
+}
+
+.api-form .reset-btn:hover {
+    background: #e6e6e6;
+    border-color: #c0c4cc;
+}
+
+.api-form .status-item {
+    text-align: center;
 }
 
 .login-footer {

@@ -2,8 +2,8 @@
     <el-container class="layout-container">
         <el-aside :width="isCollapse ? '64px' : '200px'" class="aside">
             <div class="logo">
-                <h2 v-show="!isCollapse">货组生成器</h2>
-                <h2 v-show="isCollapse" class="logo-collapsed">货</h2>
+                <h2 v-show="!isCollapse">代运营系统</h2>
+                <h2 v-show="isCollapse" class="logo-collapsed"></h2>
             </div>
             <el-menu :default-active="activeMenu" class="el-menu-vertical" :collapse="isCollapse"
                 background-color="#001529" text-color="#fff" active-text-color="#1890FF" router>
