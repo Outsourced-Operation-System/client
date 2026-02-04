@@ -6,6 +6,7 @@ import BundleManager from "../views/BundleManager.vue";
 import BundleProducts from "../views/BundleProducts.vue";
 import DataMaintenance from "../views/DataMaintenance.vue";
 import DeveloperSettings from "../views/DeveloperSettings.vue";
+import UserManagement from "../views/UserManagement.vue";
 import Login from "../views/Login.vue";
 
 const routes: Array<RouteRecordRaw> = [
@@ -53,6 +54,12 @@ const routes: Array<RouteRecordRaw> = [
           title: "开发者设置",
           requiresDeveloper: true, // 标记需要开发者权限
         },
+      },
+      {
+        path: "users",
+        name: "UserManagement",
+        component: UserManagement,
+        meta: { title: "用户管理", requiresAdmin: true },
       },
     ],
   },

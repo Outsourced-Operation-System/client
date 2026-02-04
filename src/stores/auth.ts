@@ -20,7 +20,11 @@ export interface AuthState {
 export const useAuthStore = defineStore("auth", () => {
   // 状态
   const token = ref<string | null>(localStorage.getItem("token"));
-  const user = ref<User | null>(null);
+  const user = ref<User | null>(
+    localStorage.getItem("user")
+      ? JSON.parse(localStorage.getItem("user")!)
+      : null,
+  );
   const expiresAt = ref<number | null>(null);
 
   // 计算属性
@@ -33,11 +37,13 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = authData.user;
     expiresAt.value = authData.expiresAt;
     localStorage.setItem("token", authData.token);
+    localStorage.setItem("user", JSON.stringify(authData.user));
   }
 
   // 设置用户信息
   function setUser(userData: User) {
     user.value = userData;
+    localStorage.setItem("user", JSON.stringify(userData));
   }
 
   // 清除认证信息
@@ -46,6 +52,7 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = null;
     expiresAt.value = null;
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
   }
 
   // 检查 token 是否过期

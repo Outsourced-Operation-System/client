@@ -25,6 +25,12 @@
                     </el-icon>
                     <span>数据管理</span>
                 </el-menu-item>
+                <el-menu-item v-if="authStore.isAdmin" index="/users">
+                    <el-icon>
+                        <Avatar />
+                    </el-icon>
+                    <span>用户管理</span>
+                </el-menu-item>
                 <!-- 开发者入口 - 可通过 isDeveloperMode 控制显示 -->
                 <el-menu-item v-if="showDeveloperMenu" index="/developer" class="developer-menu-item">
                     <el-icon>
@@ -35,18 +41,33 @@
             </el-menu>
             <!-- 用户信息和登出 -->
             <div class="user-section">
-                <div class="user-info" v-if="!isCollapse">
-                    <el-icon>
-                        <User />
-                    </el-icon>
-                    <span class="username">{{ authStore.user?.username || '用户' }}</span>
-                </div>
-                <el-tooltip :content="isCollapse ? '退出登录' : ''" placement="right" :disabled="!isCollapse">
-                    <div class="logout-btn" @click="handleLogout">
+                <!-- 用户名 -->
+                <el-tooltip :content="authStore.user?.username || '用户'" placement="right" :disabled="!isCollapse">
+                    <div class="user-row">
+                        <el-icon>
+                            <User />
+                        </el-icon>
+                        <span v-if="!isCollapse" class="row-text username">{{ authStore.user?.username || '用户' }}</span>
+                    </div>
+                </el-tooltip>
+
+                <!-- 修改密码 -->
+                <el-tooltip content="修改密码" placement="right" :disabled="!isCollapse">
+                    <div class="user-row action-row" @click="handleChangePassword">
+                        <el-icon>
+                            <Lock />
+                        </el-icon>
+                        <span v-if="!isCollapse" class="row-text">修改密码</span>
+                    </div>
+                </el-tooltip>
+
+                <!-- 退出登录 -->
+                <el-tooltip content="退出登录" placement="right" :disabled="!isCollapse">
+                    <div class="user-row action-row logout-row" @click="handleLogout">
                         <el-icon>
                             <SwitchButton />
                         </el-icon>
-                        <span v-if="!isCollapse">退出登录</span>
+                        <span v-if="!isCollapse" class="row-text">退出登录</span>
                     </div>
                 </el-tooltip>
             </div>
@@ -66,6 +87,7 @@
                 </router-view>
             </el-main>
         </el-container>
+        <ChangePasswordDialog v-model="changePasswordVisible" />
     </el-container>
 </template>
 
@@ -73,9 +95,10 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { Box, List, DataLine, DArrowLeft, DArrowRight, Tools, User, SwitchButton } from '@element-plus/icons-vue'
-import { useDeveloperMode } from '../composables/useDeveloperMode'
+import { Box, List, DataLine, DArrowLeft, DArrowRight, Tools, User, SwitchButton, Lock, Avatar } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
+import { useProfileChange } from '../composables/useProfileChange'
+import ChangePasswordDialog from '../components/ChangePasswordDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -83,16 +106,18 @@ const authStore = useAuthStore()
 const activeMenu = computed(() => route.path)
 const isCollapse = ref(false)
 
-// 开发者模式控制
-const { isDeveloperMode } = useDeveloperMode()
+// 密码修改控制
+const { changePasswordVisible, openChangePasswordDialog } = useProfileChange()
 
 // 控制开发者菜单显示
 // 后续可以在这里添加更多鉴权逻辑
 const showDeveloperMenu = computed(() => {
-    // 开发环境始终显示，或者开发者模式开启时显示
-    return true
-    return import.meta.env.DEV || isDeveloperMode.value
+    return authStore.isAdmin
 })
+
+const handleChangePassword = () => {
+    openChangePasswordDialog()
+}
 
 const toggleCollapse = () => {
     isCollapse.value = !isCollapse.value
@@ -175,45 +200,50 @@ const handleLogout = async () => {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     padding: 10px 0;
     margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
-.user-info {
+.user-row {
     display: flex;
     align-items: center;
-    padding: 8px 20px;
-    color: rgba(255, 255, 255, 0.7);
+    height: 48px;
+    padding: 0 20px;
+    color: rgba(255, 255, 255, 0.65);
     font-size: 14px;
+    transition: all 0.3s;
+    cursor: default;
 }
 
-.user-info .el-icon {
-    margin-right: 8px;
+.user-row .el-icon {
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
 }
 
-.username {
+.row-text {
+    margin-left: 12px;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
-.logout-btn {
-    display: flex;
-    align-items: center;
-    padding: 10px 20px;
-    color: rgba(255, 255, 255, 0.65);
+.action-row {
     cursor: pointer;
-    transition: all 0.3s;
-    font-size: 14px;
 }
 
-.logout-btn:hover {
+.action-row:hover {
     background-color: rgba(255, 255, 255, 0.1);
-    color: #ff4d4f;
+    color: #fff;
 }
 
-.logout-btn .el-icon {
-    margin-right: 8px;
-    font-size: 18px;
+.logout-row:hover {
+    color: #ff4d4f;
+    background-color: rgba(255, 255, 255, 0.1);
 }
+
 
 .collapse-btn {
     height: 48px;
