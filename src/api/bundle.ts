@@ -31,12 +31,16 @@ export interface BundleData {
   fragrance: string;
   usageType: string;
 }
-
+export interface Response<T> {
+  data: T;
+  success: boolean;
+  error: string;
+}
 export interface BundleRecord {
   id: number;
   virtual_code: string;
   name: string;
-  created_at: string;
+  create_date: string;
   end_date: string;
   usage_type: string;
   total_value: number;
@@ -48,6 +52,8 @@ export interface BundleRecord {
   fragrance: string;
   status: string;
   items?: BundleItem[];
+  parent_id?: number | null;
+  last_update_time?: string;
 }
 
 export interface BundleFilters {
@@ -144,14 +150,14 @@ export const bundleApi = {
   /**
    * 获取子货组
    */
-  getChildBundles: (parentId: number): Promise<BundleRecord[]> => {
+  getChildBundles: (parentId: number): Promise<Response<BundleRecord[]>> => {
     return get(`/bundles/${parentId}/children`);
   },
 
   /**
    * 获取货组详情
    */
-  getBundleDetail: (id: number): Promise<BundleRecord> => {
+  getBundleDetail: (id: number): Promise<Response<BundleRecord>> => {
     return get(`/bundles/${id}`);
   },
 
@@ -198,8 +204,8 @@ export const bundleApi = {
    */
   updateBundle: (
     bundleData: Partial<BundleRecord>,
-  ): Promise<{ success: boolean }> => {
-    return put(`/bundles/${bundleData.id}`, bundleData);
+  ): Promise<{ success: boolean; newBundleId: number; error: string }> => {
+    return post(`/bundles/update`, bundleData);
   },
 
   /**

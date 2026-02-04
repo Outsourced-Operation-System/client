@@ -132,6 +132,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Edit } from '@element-plus/icons-vue'
 import type { BundleRecord } from '../../composables/BundleManager'
+import { labelApi, bundleApi } from '@/api'
 
 interface BundleDetail extends BundleRecord {
     items?: any[]
@@ -231,20 +232,21 @@ const searchLabels = async (field: string, query: string) => {
                 break
         }
 
-        const res = await (window as any).electronAPI.searchLabels(field, query || '')
-        if (res.success) {
+        const res = await labelApi.searchLabels(field, query || '')
+        console.log(res)
+        if (res) {
             switch (field) {
                 case 'category':
-                    categories.value = res.data
+                    categories.value = res
                     break
                 case 'productType':
-                    productTypes.value = res.data
+                    productTypes.value = res
                     break
                 case 'bySku':
-                    bySkuList.value = res.data
+                    bySkuList.value = res
                     break
                 case 'fragrance':
-                    fragrances.value = res.data
+                    fragrances.value = res
                     break
             }
         }
@@ -262,14 +264,15 @@ const searchLabels = async (field: string, query: string) => {
 const loadBundleDetail = async (bundleId: number) => {
     loading.value = true
     try {
-        const res = await (window as any).electronAPI.getBundleDetail(bundleId)
-        if (res.success && res.data) {
+        const res = await bundleApi.getBundleDetail(bundleId)
+        console.log('货组详情:', res)
+        if (res && res.success) {
             const data = res.data
             Object.assign(formData, {
                 id: data.id,
                 virtual_code: data.virtual_code,
                 name: data.name,
-                create_date: data.created_at || data.create_date,
+                create_date: data.create_date,
                 end_date: data.end_date,
                 usage_type: data.usage_type,
                 total_value: data.total_value,
@@ -290,7 +293,7 @@ const loadBundleDetail = async (bundleId: number) => {
             if (formData.by_sku) bySkuList.value = [formData.by_sku]
             if (formData.fragrance) fragrances.value = [formData.fragrance]
         } else {
-            ElMessage.error(res.error || '获取货组详情失败')
+            ElMessage.error('获取货组详情失败')
         }
     } catch (e) {
         console.error('加载货组详情失败:', e)
@@ -309,14 +312,14 @@ const handleSave = async () => {
 
     saving.value = true
     try {
-        const res = await (window as any).electronAPI.updateBundle({
+        const res = await bundleApi.updateBundle({
             id: formData.id,
             name: formData.name,
-            endDate: formData.end_date,
-            usageType: formData.usage_type,
+            end_date: formData.end_date,
+            usage_type: formData.usage_type,
             category: formData.category,
-            productType: formData.product_type,
-            bySku: formData.by_sku,
+            product_type: formData.product_type,
+            by_sku: formData.by_sku,
             fragrance: formData.fragrance,
             status: formData.status
         })

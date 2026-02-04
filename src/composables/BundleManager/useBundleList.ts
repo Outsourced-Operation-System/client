@@ -52,7 +52,7 @@ export function useBundleList() {
     id: item.id,
     virtual_code: item.virtual_code,
     name: item.name,
-    create_date: item.created_at || (item as any).create_date, // 兼容 create_date
+    create_date: item.create_date,
     end_date: item.end_date,
     usage_type: item.usage_type,
     total_value: item.total_value,
@@ -66,8 +66,8 @@ export function useBundleList() {
     // 以下字段可能来自扩展响应
     parent_id: (item as any).parent_id,
     children_count: (item as any).children_count,
-    update_time: (item as any).update_time,
-    last_update_time: (item as any).last_update_time,
+    // update_time: (item as any).update_time,
+    // last_update_time: (item as any).last_update_time,
   });
 
   // 获取货组列表
@@ -79,7 +79,7 @@ export function useBundleList() {
         page: currentPage.value,
         pageSize: pageSize.value,
       });
-      console.log(res);
+      console.log("bundles: ", res);
       let newList: BundleRecord[] = [];
 
       // 兼容多种返回格式 list/items/records/data
@@ -132,8 +132,14 @@ export function useBundleList() {
   ): Promise<BundleRecord[]> => {
     try {
       const res = await bundleApi.getChildBundles(parentId);
-      if (Array.isArray(res)) {
-        return res.map((item) => ({
+      if (!res || !res.success) {
+        console.error("获取子货组失败: API 返回失败");
+        ElMessage.error("获取子货组失败" + res?.error || "");
+        return [];
+      }
+      console.log("child bundles: ", res);
+      if (Array.isArray(res.data)) {
+        return res.data.map((item) => ({
           ...mapApiRecord(item),
           isChild: true,
         }));

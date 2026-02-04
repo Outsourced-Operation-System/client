@@ -23,7 +23,7 @@
                 <template #default="scope">
                     <!-- 子货组显示更新时间 -->
                     <template v-if="scope.row.isChild">
-                        {{ scope.row.update_time }}
+                        {{ scope.row.create_date }}
                     </template>
                     <!-- 父货组：展开时显示创建时间，收起时显示最后更新时间 -->
                     <template v-else>

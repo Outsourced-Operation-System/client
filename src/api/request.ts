@@ -6,10 +6,6 @@ import { getApiBaseUrl } from "../composables/useApiConfig";
 // API 基础配置 - 动态获取
 export const getBaseUrl = () => getApiBaseUrl();
 
-// 兼容旧代码的导出（不推荐使用，请使用 getBaseUrl()）
-// export const API_BASE_URL =
-//   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
-
 // 通用请求方法
 export async function request<T>(
   endpoint: string,
