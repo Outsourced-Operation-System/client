@@ -33,6 +33,23 @@
                     <span>开发者</span>
                 </el-menu-item>
             </el-menu>
+            <!-- 用户信息和登出 -->
+            <div class="user-section">
+                <div class="user-info" v-if="!isCollapse">
+                    <el-icon>
+                        <User />
+                    </el-icon>
+                    <span class="username">{{ authStore.user?.username || '用户' }}</span>
+                </div>
+                <el-tooltip :content="isCollapse ? '退出登录' : ''" placement="right" :disabled="!isCollapse">
+                    <div class="logout-btn" @click="handleLogout">
+                        <el-icon>
+                            <SwitchButton />
+                        </el-icon>
+                        <span v-if="!isCollapse">退出登录</span>
+                    </div>
+                </el-tooltip>
+            </div>
             <div class="collapse-btn" @click="toggleCollapse">
                 <el-icon>
                     <DArrowLeft v-if="!isCollapse" />
@@ -54,11 +71,15 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { Box, List, DataLine, DArrowLeft, DArrowRight, Tools } from '@element-plus/icons-vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessageBox } from 'element-plus'
+import { Box, List, DataLine, DArrowLeft, DArrowRight, Tools, User, SwitchButton } from '@element-plus/icons-vue'
 import { useDeveloperMode } from '../composables/useDeveloperMode'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 const activeMenu = computed(() => route.path)
 const isCollapse = ref(false)
 
@@ -75,6 +96,29 @@ const showDeveloperMenu = computed(() => {
 
 const toggleCollapse = () => {
     isCollapse.value = !isCollapse.value
+}
+
+// 处理登出
+const handleLogout = async () => {
+    try {
+        await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning',
+        })
+
+        // 清除认证信息
+        authStore.clearAuth()
+
+        // 如果在 Electron 环境，通知主进程
+        if (window.electronAPI?.logout) {
+            window.electronAPI.logout()
+        } else {
+            router.push('/login')
+        }
+    } catch {
+        // 用户取消
+    }
 }
 </script>
 
@@ -124,7 +168,51 @@ const toggleCollapse = () => {
 /* 开发者菜单项样式 */
 .developer-menu-item {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 用户信息区域 */
+.user-section {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 10px 0;
     margin-top: auto;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    padding: 8px 20px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+}
+
+.user-info .el-icon {
+    margin-right: 8px;
+}
+
+.username {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.logout-btn {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    color: rgba(255, 255, 255, 0.65);
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 14px;
+}
+
+.logout-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #ff4d4f;
+}
+
+.logout-btn .el-icon {
+    margin-right: 8px;
+    font-size: 18px;
 }
 
 .collapse-btn {

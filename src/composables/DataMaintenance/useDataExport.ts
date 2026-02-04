@@ -1,23 +1,7 @@
 import { ElMessage } from "element-plus";
 import { dataApi } from "@/api";
 
-// 声明 electronAPI 类型
-declare global {
-  interface Window {
-    electronAPI: {
-      getPathForFile: (file: File) => string;
-      showSaveDialog: (options: {
-        title?: string;
-        defaultPath?: string;
-        filters?: { name: string; extensions: string[] }[];
-      }) => Promise<{ canceled: boolean; filePath?: string }>;
-      saveFile: (
-        filePath: string,
-        buffer: ArrayBuffer,
-      ) => Promise<{ success: boolean; error?: string }>;
-    };
-  }
-}
+// 注意：electronAPI 类型已在 src/types/electron.d.ts 中全局声明
 
 /**
  * 数据导出 Composable
@@ -31,6 +15,11 @@ export function useDataExport() {
     successMessage: string,
   ) => {
     try {
+      if (!window.electronAPI) {
+        ElMessage.error("当前环境不支持文件导出");
+        return;
+      }
+
       // 1. 先让用户选择保存路径
       const result = await window.electronAPI.showSaveDialog({
         title: "选择保存位置",

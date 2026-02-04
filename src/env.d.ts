@@ -1,6 +1,7 @@
 // src/env.d.ts (或者 vite-env.d.ts)
 
 /// <reference types="vite/client" />
+/// <reference path="./types/electron.d.ts" />
 
 declare module "*.vue" {
   import type { DefineComponent } from "vue";

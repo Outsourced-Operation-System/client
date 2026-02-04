@@ -5,4 +5,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   showSaveDialog: (options) => ipcRenderer.invoke("show-save-dialog", options),
   saveFile: (filePath, buffer) =>
     ipcRenderer.invoke("save-file", { filePath, buffer }),
+  // 认证相关
+  loginSuccess: () => ipcRenderer.send("login-success"),
+  logout: () => ipcRenderer.send("logout"),
+  minimizeWindow: () => ipcRenderer.send("minimize-window"),
 });

@@ -1,10 +1,39 @@
 /**
  * HTTP 请求基础模块
+ * 包含 JWT Token 自动携带和 401 错误处理
  */
 import { getApiBaseUrl } from "../composables/useApiConfig";
+import router from "../router";
+import { ElMessage } from "element-plus";
 
 // API 基础配置 - 动态获取
 export const getBaseUrl = () => getApiBaseUrl();
+
+// 不需要携带 Token 的接口白名单
+const AUTH_WHITE_LIST = ["/api/auth/login", "/api/auth/register"];
+
+// 获取 Token
+function getToken(): string | null {
+  return localStorage.getItem("token");
+}
+
+// 清除认证信息并跳转登录页
+function handleUnauthorized() {
+  localStorage.removeItem("token");
+  ElMessage.error("登录已过期，请重新登录");
+
+  // 如果在 Electron 环境，通知主进程
+  if (window.electronAPI?.logout) {
+    window.electronAPI.logout();
+  } else {
+    router.push("/login");
+  }
+}
+
+// 检查是否需要携带 Token
+function needsToken(endpoint: string): boolean {
+  return !AUTH_WHITE_LIST.some((path) => endpoint.startsWith(path));
+}
 
 // 通用请求方法
 export async function request<T>(
@@ -17,6 +46,13 @@ export async function request<T>(
     "Content-Type": "application/json",
   };
 
+  // 如果需要 Token 且 Token 存在，则添加到 Header
+  const token = getToken();
+  if (needsToken(endpoint) && token) {
+    (defaultHeaders as Record<string, string>)["Authorization"] =
+      `Bearer ${token}`;
+  }
+
   const config: RequestInit = {
     ...options,
     headers: {
@@ -27,6 +63,12 @@ export async function request<T>(
 
   try {
     const response = await fetch(url, config);
+
+    // 处理 401 未授权错误
+    if (response.status === 401) {
+      handleUnauthorized();
+      throw new Error("未授权，请重新登录");
+    }
 
     if (!response.ok) {
       const error = await response
@@ -103,10 +145,24 @@ export async function upload<T>(
     });
   }
 
+  // 文件上传也需要携带 Token
+  const headers: HeadersInit = {};
+  const token = getToken();
+  if (needsToken(endpoint) && token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(url, {
     method: "POST",
+    headers,
     body: formData,
   });
+
+  // 处理 401 未授权错误
+  if (response.status === 401) {
+    handleUnauthorized();
+    throw new Error("未授权，请重新登录");
+  }
 
   if (!response.ok) {
     const error = await response

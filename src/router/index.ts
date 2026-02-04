@@ -6,12 +6,20 @@ import BundleManager from "../views/BundleManager.vue";
 import BundleProducts from "../views/BundleProducts.vue";
 import DataMaintenance from "../views/DataMaintenance.vue";
 import DeveloperSettings from "../views/DeveloperSettings.vue";
+import Login from "../views/Login.vue";
 
 const routes: Array<RouteRecordRaw> = [
+  {
+    path: "/login",
+    name: "Login",
+    component: Login,
+    meta: { title: "登录", requiresAuth: false },
+  },
   {
     path: "/",
     component: MainLayout,
     redirect: "/generator",
+    meta: { requiresAuth: true },
     children: [
       {
         path: "generator",
@@ -53,6 +61,24 @@ const routes: Array<RouteRecordRaw> = [
 const router = createRouter({
   history: createWebHashHistory(),
   routes,
+});
+
+// 路由守卫 - 检查认证状态
+router.beforeEach((to, _from, next) => {
+  const token = localStorage.getItem("token");
+  const requiresAuth = to.matched.some(
+    (record) => record.meta.requiresAuth !== false,
+  );
+
+  if (requiresAuth && !token) {
+    // 需要认证但没有 token，跳转到登录页
+    next({ path: "/login", query: { redirect: to.fullPath } });
+  } else if (to.path === "/login" && token) {
+    // 已登录但访问登录页，跳转到首页
+    next({ path: "/" });
+  } else {
+    next();
+  }
 });
 
 export default router;

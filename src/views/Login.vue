@@ -1,0 +1,302 @@
+<template>
+    <div class="login-container">
+        <!-- 窗口控制栏（仅 Electron 环境显示） -->
+        <div class="window-controls" v-if="isElectron">
+            <div class="drag-area"></div>
+            <div class="control-buttons">
+                <button class="control-btn minimize-btn" @click="minimizeWindow">
+                    <el-icon>
+                        <Minus />
+                    </el-icon>
+                </button>
+                <button class="control-btn close-btn" @click="closeWindow">
+                    <el-icon>
+                        <Close />
+                    </el-icon>
+                </button>
+            </div>
+        </div>
+
+        <!-- 头部区域：包含 Logo 和 Tabs -->
+        <div class="login-header">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <el-icon :size="32" color="#fff">
+                        <Box />
+                    </el-icon>
+                </div>
+                <div class="app-info">
+                    <h1 class="app-title">代运营系统</h1>
+                </div>
+            </div>
+        </div>
+
+        <!-- 表单区域 -->
+        <div class="login-body">
+            <div class="form-container">
+                <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" @submit.prevent="handleLogin"
+                    class="custom-form" hide-required-asterisk>
+                    <el-form-item prop="username">
+                        <el-input v-model="loginForm.username" placeholder="请输入用户名" :prefix-icon="User" size="large" />
+                    </el-form-item>
+                    <el-form-item prop="password">
+                        <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" :prefix-icon="Lock"
+                            size="large" show-password @keyup.enter="handleLogin" />
+                    </el-form-item>
+                    <div class="form-actions">
+                        <el-button type="primary" size="large" :loading="loading" class="submit-btn"
+                            @click="handleLogin" round>
+                            登 录
+                        </el-button>
+                    </div>
+                </el-form>
+            </div>
+        </div>
+
+        <!-- 底部信息 -->
+        <div class="login-footer">
+            v0.1.0
+        </div>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { User, Lock, Box, Close, Minus } from '@element-plus/icons-vue'
+import { useAuthStore } from '../stores/auth'
+import { login } from '../api/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+// 检测是否在 Electron 环境
+const isElectron = computed(() => !!window.electronAPI)
+
+const loading = ref(false)
+
+// 窗口控制
+const minimizeWindow = () => {
+    window.electronAPI?.minimizeWindow()
+}
+
+const closeWindow = () => {
+    window.close()
+}
+
+// 登录表单
+const loginFormRef = ref<FormInstance>()
+const loginForm = reactive({
+    username: '',
+    password: '',
+})
+
+const loginRules: FormRules = {
+    username: [
+        { required: true, message: '请输入用户名', trigger: 'blur' },
+    ],
+    password: [
+        { required: true, message: '请输入密码', trigger: 'blur' },
+    ],
+}
+
+// 处理登录
+const handleLogin = async () => {
+    if (!loginFormRef.value) return
+
+    await loginFormRef.value.validate(async (valid) => {
+        if (!valid) return
+
+        loading.value = true
+        try {
+            const response = await login({
+                username: loginForm.username,
+                password: loginForm.password,
+            })
+
+            // 保存认证信息
+            authStore.setAuth(response)
+
+            ElMessage.success('登录成功')
+
+            // 通知 Electron 主进程登录成功，切换到主窗口
+            if (window.electronAPI?.loginSuccess) {
+                window.electronAPI.loginSuccess()
+            } else {
+                // 非 Electron 环境，直接跳转
+                router.push('/')
+            }
+        } catch (error: any) {
+            ElMessage.error(error.message || '登录失败')
+        } finally {
+            loading.value = false
+        }
+    })
+}
+</script>
+
+<style scoped>
+.login-container {
+    height: 100vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    overflow: hidden;
+    border-radius: 18px;
+}
+
+/* 窗口控制栏 */
+.window-controls {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 32px;
+    display: flex;
+    justify-content: space-between;
+    -webkit-app-region: drag;
+    z-index: 20;
+}
+
+.drag-area {
+    flex: 1;
+}
+
+.control-buttons {
+    display: flex;
+    -webkit-app-region: no-drag;
+}
+
+.control-btn {
+    width: 46px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.control-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.close-btn:hover {
+    background: #e81123;
+}
+
+/* 头部 Header */
+.login-header {
+    height: 214px;
+    background: linear-gradient(135deg, #001529 0%, #1890ff 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 10px;
+}
+
+.logo-area {
+    text-align: center;
+    color: #fff;
+}
+
+.logo-icon {
+    width: 56px;
+    height: 56px;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.app-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.app-subtitle {
+    margin: 4px 0 0;
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+/* 主体区域 */
+.login-body {
+    flex: 1;
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    margin-top: -20px;
+    padding: 60px 40px 0;
+    position: relative;
+    z-index: 10;
+}
+
+/* 表单样式 */
+.custom-form :deep(.el-input__wrapper) {
+    background: #f5f7fa;
+    border: none;
+    box-shadow: none;
+    border-radius: 8px;
+    padding: 1px 15px;
+    transition: all 0.3s;
+}
+
+.custom-form :deep(.el-input__wrapper:hover) {
+    background: #eef0f4;
+}
+
+.custom-form :deep(.el-input__wrapper.is-focus) {
+    background: #fff;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.custom-form :deep(.el-input__inner) {
+    height: 42px;
+    color: #303133;
+}
+
+.custom-form :deep(.el-form-item) {
+    margin-bottom: 24px;
+}
+
+.submit-btn {
+    width: 100%;
+    height: 44px;
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: 4px;
+    background: #1890ff;
+    border: none;
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+    margin-top: 8px;
+    transition: all 0.3s;
+}
+
+.submit-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(24, 144, 255, 0.4);
+    background: #40a9ff;
+}
+
+.submit-btn:active {
+    transform: translateY(0);
+}
+
+.login-footer {
+    text-align: center;
+    padding: 15px;
+    font-size: 12px;
+    color: #909399;
+}
+</style>
