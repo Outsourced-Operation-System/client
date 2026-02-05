@@ -2,6 +2,7 @@
  * 货组相关 API
  */
 import { get, post, put, del } from "./request";
+import { getApiBaseUrl } from "@/composables/useApiConfig";
 
 export interface BundleItem {
   sku: string;
@@ -123,7 +124,7 @@ export const bundleApi = {
   checkStockAvailabilityWithQty: (
     items: StockCheckItem[],
   ): Promise<StockCheckResponse> => {
-    return post("/bundles/check-stock-with-qty", { items });
+    return post("/bundles/check-stock-with-qty", items);
   },
 
   /**
@@ -180,13 +181,28 @@ export const bundleApi = {
   },
 
   /**
-   * 批量导出货组
+   * 批量导出货组 - 返回 Blob 数据
    */
-  batchExportBundles: (
+  batchExportBundles: async (
     ids: number[],
     exportType: "sku" | "virtual",
-  ): Promise<{ success: boolean; filePath?: string; canceled?: boolean }> => {
-    return post("/bundles/batch-export", { ids, exportType });
+  ): Promise<Blob> => {
+    const url = `${getApiBaseUrl()}/bundles/batch-export`;
+    const token = localStorage.getItem("token");
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token ? `Bearer ${token}` : "",
+      },
+      body: JSON.stringify({ ids, exportType }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`导出失败: ${response.statusText}`);
+    }
+    return response.blob();
   },
 
   /**

@@ -76,43 +76,104 @@ export function useBundleOperations() {
     bundles: BundleRecord[],
     exportOptions: { exportSku: boolean; exportVirtual: boolean },
   ) => {
-    console.log("==== 前端：开始批量导出 ====");
-    console.log("导出选项:", exportOptions);
-
     if (bundles.length === 0) {
       ElMessage.warning("请先选择要导出的货组");
       return;
     }
 
+    if (!window.electronAPI) {
+      ElMessage.error("当前环境不支持文件导出");
+      return;
+    }
+
     try {
       const ids = bundles.map((b) => b.id);
-      console.log("货组IDs:", ids);
 
       // 根据选择执行导出
       let successCount = 0;
       let failCount = 0;
 
+      // 导出SKU表格
       if (exportOptions.exportSku) {
-        console.log("前端：调用 SKU 导出...");
-        const res = await bundleApi.batchExportBundles(ids, "sku");
-        console.log("前端：SKU 导出结果:", res);
-        // 如果用户取消，不算失败
-        if (res && res.success) {
-          successCount++;
-        } else if (!res?.canceled) {
-          failCount++;
+        const defaultFileName = `Rituals_SKU_${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.xlsx`;
+
+        // 1. 先让用户选择保存路径
+        const result = await window.electronAPI.showSaveDialog({
+          title: "选择SKU表格保存位置",
+          defaultPath: defaultFileName,
+          filters: [{ name: "Excel 文件", extensions: ["xlsx"] }],
+        });
+
+        if (!result.canceled && result.filePath) {
+          try {
+            // 2. 从后端获取文件数据
+            const blob = await bundleApi.batchExportBundles(ids, "sku");
+
+            // 3. 将 Blob 转换为 ArrayBuffer
+            const arrayBuffer = await blob.arrayBuffer();
+
+            // 4. 保存到用户选择的路径
+            const saveResult = await window.electronAPI.saveFile(
+              result.filePath,
+              arrayBuffer,
+            );
+
+            if (saveResult.success) {
+              ElMessage.success(`SKU表格已保存到 ${result.filePath}`);
+              successCount++;
+            } else {
+              ElMessage.error(
+                "SKU表格保存失败: " + (saveResult.error || "未知错误"),
+              );
+              failCount++;
+            }
+          } catch (e: any) {
+            console.error("SKU导出出错:", e);
+            ElMessage.error("SKU导出出错: " + (e?.message || String(e)));
+            failCount++;
+          }
         }
       }
 
+      // 导出虚拟组套表格
       if (exportOptions.exportVirtual) {
-        console.log("前端：调用虚拟组套导出...");
-        const res = await bundleApi.batchExportBundles(ids, "virtual");
-        console.log("前端：虚拟组套导出结果:", res);
-        // 如果用户取消，不算失败
-        if (res && res.success) {
-          successCount++;
-        } else if (!res?.canceled) {
-          failCount++;
+        const defaultFileName = `Rituals_Virtual_${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.xlsx`;
+
+        // 1. 先让用户选择保存路径
+        const result = await window.electronAPI.showSaveDialog({
+          title: "选择虚拟组套表格保存位置",
+          defaultPath: defaultFileName,
+          filters: [{ name: "Excel 文件", extensions: ["xlsx"] }],
+        });
+
+        if (!result.canceled && result.filePath) {
+          try {
+            // 2. 从后端获取文件数据
+            const blob = await bundleApi.batchExportBundles(ids, "virtual");
+
+            // 3. 将 Blob 转换为 ArrayBuffer
+            const arrayBuffer = await blob.arrayBuffer();
+
+            // 4. 保存到用户选择的路径
+            const saveResult = await window.electronAPI.saveFile(
+              result.filePath,
+              arrayBuffer,
+            );
+
+            if (saveResult.success) {
+              ElMessage.success(`虚拟组套表格已保存到 ${result.filePath}`);
+              successCount++;
+            } else {
+              ElMessage.error(
+                "虚拟组套表格保存失败: " + (saveResult.error || "未知错误"),
+              );
+              failCount++;
+            }
+          } catch (e: any) {
+            console.error("虚拟组套导出出错:", e);
+            ElMessage.error("虚拟组套导出出错: " + (e?.message || String(e)));
+            failCount++;
+          }
         }
       }
 
