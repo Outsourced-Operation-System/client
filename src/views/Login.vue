@@ -21,12 +21,10 @@
         <div class="login-header" v-if="!showSettings">
             <div class="logo-area">
                 <div class="logo-icon">
-                    <el-icon :size="32" color="#fff">
-                        <Box />
-                    </el-icon>
+                    <el-image :src="logoImage" fit="contain" />
                 </div>
                 <div class="app-info">
-                    <h1 class="app-title">代运营系统</h1>
+                    <h1 class="app-title">澜斯代运营系统</h1>
                 </div>
             </div>
         </div>
@@ -45,10 +43,11 @@
                             size="large" show-password @keyup.enter="handleLogin" />
                     </el-form-item>
                     <div class="form-actions">
-                        <el-button type="primary" size="large" :loading="loading" class="submit-btn"
-                            @click="handleLogin" round>
+                        <el-button size="large" :loading="loading" class="submit-btn brand-btn" @click="handleLogin"
+                            round>
                             登 录
                         </el-button>
+
                     </div>
                 </el-form>
 
@@ -116,10 +115,11 @@
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { User, Lock, Box, Close, Minus, ArrowLeft, Check, RefreshLeft } from '@element-plus/icons-vue'
+import { User, Lock, Close, Minus, ArrowLeft, Check, RefreshLeft } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { login } from '../api/auth'
 import { useApiConfig } from '../composables/useApiConfig'
+import logoImage from '../assets/lanceec.png'
 
 const DEFAULT_API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
 const router = useRouter()
@@ -336,14 +336,28 @@ const handleLogin = async () => {
 }
 
 /* 头部 Header */
+/* .login-header {
+    height: 214px;
+    background: linear-gradient(135deg, #1890ff 0%, #001529 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 10px;
+} */
 .login-header {
     height: 214px;
-    background: linear-gradient(135deg, #001529 0%, #1890ff 100%);
+    background: linear-gradient(135deg,
+            #10406B 0%,
+            #6F86A3 55%,
+            #9CADC0 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     padding-top: 10px;
 }
+
+
+
 
 .logo-area {
     text-align: center;
@@ -351,16 +365,12 @@ const handleLogin = async () => {
 }
 
 .logo-icon {
-    width: 56px;
-    height: 56px;
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
-    border-radius: 16px;
+    width: 90px;
+    height: 90px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .app-title {
@@ -511,5 +521,41 @@ const handleLogin = async () => {
     padding: 15px;
     font-size: 12px;
     color: #909399;
+}
+
+.brand-btn {
+    width: 100%;
+    height: 44px;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 4px;
+
+    color: #ffffff;
+    border: none;
+
+    background: linear-gradient(135deg,
+            #10406B 0%,
+            #6F86A3 55%,
+            #9CADC0 100%);
+
+    box-shadow:
+        0 6px 16px rgba(16, 64, 107, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+
+    transition: all 0.25s ease;
+}
+
+.brand-btn:hover {
+    transform: translateY(-1px);
+    box-shadow:
+        0 10px 22px rgba(16, 64, 107, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.brand-btn:active {
+    transform: translateY(0);
+    box-shadow:
+        0 4px 10px rgba(16, 64, 107, 0.35),
+        inset 0 3px 6px rgba(0, 0, 0, 0.25);
 }
 </style>
