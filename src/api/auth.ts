@@ -80,10 +80,10 @@ export async function getCurrentUser(): Promise<User> {
  * 用户信息接口
  */
 export interface UserInfo {
-  ID: number;
-  CreatedAt: string;
-  UpdatedAt: string;
-  DeletedAt: string | null;
+  id: number;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
   username: string;
   role: string;
 }

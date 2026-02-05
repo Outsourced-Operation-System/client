@@ -54,7 +54,7 @@
 
                 <!-- 后端设置入口 -->
                 <div class="settings-link" @click="openSettings">
-                    后端IP设置
+                    网络设置
                 </div>
             </div>
 

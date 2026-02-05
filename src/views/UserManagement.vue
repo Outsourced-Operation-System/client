@@ -140,7 +140,7 @@ const handleAddUser = () => {
 
 const handleEdit = (row: UserInfo) => {
     isEdit.value = true;
-    form.id = row.ID;
+    form.id = row.id;
     form.username = row.username;
     form.password = ""; // 编辑时不回显密码
     form.confirmPassword = "";
@@ -160,7 +160,8 @@ const handleDelete = (row: UserInfo) => {
     )
         .then(async () => {
             try {
-                await deleteUser(row.ID);
+                console.log(row)
+                await deleteUser(row.id);
                 ElMessage.success("删除成功");
                 fetchUsers();
             } catch (error: any) {

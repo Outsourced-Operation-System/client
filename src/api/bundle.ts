@@ -214,7 +214,19 @@ export const bundleApi = {
   updateBundleItems: (data: {
     bundleId: number;
     items: BundleItem[];
-  }): Promise<{ success: boolean }> => {
-    return put(`/bundles/${data.bundleId}/items`, { items: data.items });
+    totalValue: number;
+    mainValue: number;
+    giftValue: number;
+    skuChanges: {
+      sku: string;
+      change: number;
+    }[];
+  }): Promise<{
+    success: boolean;
+    newBundleId: number;
+    error?: string;
+    parentId?: number;
+  }> => {
+    return post(`/bundles/update-items`, data);
   },
 };

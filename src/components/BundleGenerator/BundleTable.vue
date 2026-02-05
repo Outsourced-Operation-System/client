@@ -6,7 +6,7 @@
             <div class="card-header">
                 <div class="header-left">
                     <span>生成货组</span>
-                    <div v-show="!isPreviewVisible" class="count-info">
+                    <div class="count-info">
                         <span class="count-item">主品数量: <span class="count-number main">{{ mainCount }}</span></span>
                         <span class="count-item">赠品数量: <span class="count-number gift">{{ giftCount }}</span></span>
                     </div>

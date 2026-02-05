@@ -138,6 +138,7 @@ import { ref, computed, watch, onActivated } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Search } from '@element-plus/icons-vue'
+import { bundleApi, productApi } from '@/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -217,7 +218,7 @@ const loadBundleDetail = async () => {
 
     loading.value = true
     try {
-        const res = await (window as any).electronAPI.getBundleDetail(Number(bundleId))
+        const res = await bundleApi.getBundleDetail(Number(bundleId))
         if (res.success && res.data) {
             bundleInfo.value = res.data
             // 为每个商品生成 uid
@@ -251,7 +252,7 @@ const fetchArticleStockTotal = async (articleCode: string) => {
     if (!articleCode || articleStockCache.value.has(articleCode)) return
 
     try {
-        const res = await (window as any).electronAPI.getArticleStockTotal(articleCode)
+        const res = await productApi.getArticleStockTotal(articleCode)
         articleStockCache.value.set(articleCode, res?.total || 0)
     } catch (e) {
         console.error('获取A码库存失败:', e)
@@ -325,7 +326,7 @@ const checkNewItemsStock = async (): Promise<{ sufficient: boolean; insufficient
 
     try {
         // 检查每个需要新增数量的商品的库存是否足够
-        const res = await (window as any).electronAPI.checkStockAvailabilityWithQty(
+        const res = await bundleApi.checkStockAvailabilityWithQty(
             increasedItems.map(({ sku, increase, item }) => ({
                 sku,
                 requiredQty: increase,
@@ -354,7 +355,7 @@ const querySearch = async (queryString: string, cb: any) => {
     }
 
     try {
-        const res = await (window as any).electronAPI.searchProductSuggestions(String(queryString))
+        const res = await productApi.searchProductSuggestions(String(queryString))
         const suggestions = res.map((item: any) => ({
             value: item.product_name_cn,
             ...item
@@ -374,7 +375,7 @@ const handleSearch = async () => {
     }
 
     try {
-        const res = await (window as any).electronAPI.searchProductsByTypes(
+        const res = await productApi.searchProductsByTypes(
             String(searchQuery.value),
             [searchType.value],
             Boolean(filterZeroStock.value)
@@ -539,19 +540,22 @@ const handleSave = async () => {
         // 准备商品数据，确保每个商品都有 sku 字段
         const itemsToSave = bundleItems.value.map(item => ({
             ...item,
+            qty_available: Number(item.qty_available),
             sku: item.sku || item.tu
         }))
 
         // 更新货组商品
-        const res = await (window as any).electronAPI.updateBundleItems({
+        const updateJson = {
             bundleId: bundleInfo.value.id,
             items: itemsToSave,
             totalValue: Number(totalValue.value),
             mainValue: Number(mainValue.value),
             giftValue: Number(giftValue.value),
-            skuChanges // 传递SKU数量变化
-        })
-
+            skuChanges: skuChanges,
+        }
+        console.log('更新货组商品参数:', updateJson)
+        const res = await bundleApi.updateBundleItems(updateJson)
+        console.log(res)
         if (res.success) {
             // 更新原始数据，防止返回时误判为有修改
             originalItems.value = JSON.parse(JSON.stringify(bundleItems.value))
