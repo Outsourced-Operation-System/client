@@ -6,7 +6,10 @@ import BundleManager from "../views/BundleManager.vue";
 import BundleProducts from "../views/BundleProducts.vue";
 import DataMaintenance from "../views/DataMaintenance.vue";
 import DeveloperSettings from "../views/DeveloperSettings.vue";
+import ExecutionOrderManagement from "../views/ExecutionOrderManagement.vue";
+import InfluencerManagement from "../views/InfluencerManagement.vue";
 import UserManagement from "../views/UserManagement.vue";
+import Workbench from "../views/Workbench.vue";
 import Login from "../views/Login.vue";
 
 const routes: Array<RouteRecordRaw> = [
@@ -19,9 +22,15 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: "/",
     component: MainLayout,
-    redirect: "/generator",
+    redirect: "/workbench",
     meta: { requiresAuth: true },
     children: [
+      {
+        path: "workbench",
+        name: "Workbench",
+        component: Workbench,
+        meta: { title: "工作台" },
+      },
       {
         path: "generator",
         name: "BundleGenerator",
@@ -35,6 +44,12 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: "货组管理" },
       },
       {
+        path: "execution-orders",
+        name: "ExecutionOrderManagement",
+        component: ExecutionOrderManagement,
+        meta: { title: "执行单管理" },
+      },
+      {
         path: "bundle-products",
         name: "BundleProducts",
         component: BundleProducts,
@@ -45,6 +60,12 @@ const routes: Array<RouteRecordRaw> = [
         name: "DataMaintenance",
         component: DataMaintenance,
         meta: { title: "数据管理" },
+      },
+      {
+        path: "influencers",
+        name: "InfluencerManagement",
+        component: InfluencerManagement,
+        meta: { title: "达人管理" },
       },
       {
         path: "developer",

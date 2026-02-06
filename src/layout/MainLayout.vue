@@ -7,6 +7,12 @@
             </div>
             <el-menu :default-active="activeMenu" class="el-menu-vertical" :collapse="isCollapse"
                 background-color="#001529" text-color="#fff" active-text-color="#1890FF" router>
+                <el-menu-item index="/workbench">
+                    <el-icon>
+                        <HomeFilled />
+                    </el-icon>
+                    <span>工作台</span>
+                </el-menu-item>
                 <el-menu-item index="/generator">
                     <el-icon>
                         <Box />
@@ -19,11 +25,23 @@
                     </el-icon>
                     <span>货组管理</span>
                 </el-menu-item>
+                <el-menu-item index="/execution-orders">
+                    <el-icon>
+                        <Document />
+                    </el-icon>
+                    <span>执行单管理</span>
+                </el-menu-item>
                 <el-menu-item index="/data">
                     <el-icon>
                         <DataLine />
                     </el-icon>
                     <span>数据管理</span>
+                </el-menu-item>
+                <el-menu-item index="/influencers">
+                    <el-icon>
+                        <UserFilled />
+                    </el-icon>
+                    <span>达人管理</span>
                 </el-menu-item>
                 <el-menu-item v-if="authStore.isAdmin" index="/users">
                     <el-icon>
@@ -96,7 +114,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { Box, List, DataLine, DArrowLeft, DArrowRight, Tools, User, SwitchButton, Lock, Avatar } from '@element-plus/icons-vue'
+import { Box, List, DataLine, DArrowLeft, DArrowRight, Tools, User, SwitchButton, Lock, Avatar, HomeFilled, Document, UserFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { useProfileChange } from '../composables/useProfileChange'
 import ChangePasswordDialog from '../components/ChangePasswordDialog.vue'
@@ -107,7 +125,6 @@ const router = useRouter()
 const authStore = useAuthStore()
 const activeMenu = computed(() => route.path)
 const isCollapse = ref(false)
-const updateNotificationRef = ref()
 
 // 密码修改控制
 const { changePasswordVisible, openChangePasswordDialog } = useProfileChange()
