@@ -61,6 +61,22 @@
                 <el-tag type="info" v-else>未测试</el-tag>
             </div>
         </el-card>
+
+        <el-card class="settings-card card-spacing">
+            <template #header>
+                <div class="card-header">
+                    <el-icon>
+                        <Setting />
+                    </el-icon>
+                    <span>更新UI测试</span>
+                </div>
+            </template>
+
+            <div class="mock-update">
+                <!-- <div class="mock-update-desc">用于模拟更新流程与弹窗样式展示</div> -->
+                <el-button type="primary" @click="handleSimulateUpdate">模拟更新</el-button>
+            </div>
+        </el-card>
     </div>
 </template>
 
@@ -153,6 +169,13 @@ const handleTestConnection = async () => {
 }
 
 /**
+ * 模拟更新
+ */
+const handleSimulateUpdate = () => {
+    window.dispatchEvent(new CustomEvent('simulate-update'))
+}
+
+/**
  * 重置为默认配置
  */
 // const handleResetConfig = () => {
@@ -174,6 +197,10 @@ const handleTestConnection = async () => {
     border-radius: 8px;
 }
 
+.card-spacing {
+    margin-top: 16px;
+}
+
 .card-header {
     display: flex;
     align-items: center;
@@ -190,6 +217,17 @@ const handleTestConnection = async () => {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.mock-update {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.mock-update-desc {
+    color: #909399;
+    font-size: 13px;
 }
 
 .status-label {

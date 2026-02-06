@@ -17,6 +17,8 @@ export interface ElectronAPI {
 
 export interface ElectronUpdater {
   checkForUpdates: () => void;
+  downloadUpdate: () => void;
+  quitAndInstall: () => void;
   onUpdateStatus: (
     callback: (data: { event: string; data: any }) => void,
   ) => void;

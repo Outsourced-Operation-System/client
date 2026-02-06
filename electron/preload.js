@@ -15,6 +15,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
 contextBridge.exposeInMainWorld("electron", {
   // 检查更新
   checkForUpdates: () => ipcRenderer.send("check-for-updates"),
+  // 下载更新
+  downloadUpdate: () => ipcRenderer.send("download-update"),
+  // 安装更新
+  quitAndInstall: () => ipcRenderer.send("quit-and-install"),
   // 监听更新状态
   onUpdateStatus: (callback) => {
     ipcRenderer.on("update-status", (event, data) => callback(data));

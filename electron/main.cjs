@@ -131,27 +131,6 @@ autoUpdater.on("checking-for-update", () => {
 autoUpdater.on("update-available", (info) => {
   log.info("发现新版本:", info.version);
   sendUpdateStatusToWindow("update-available", info);
-
-  // 询问用户是否下载更新
-  dialog
-    .showMessageBox({
-      type: "info",
-      title: "发现新版本",
-      message: `发现新版本 ${info.version}，是否立即下载更新？`,
-      detail: "更新内容请查看发行说明",
-      buttons: ["立即下载", "稍后"],
-      defaultId: 0,
-      cancelId: 1,
-    })
-    .then((result) => {
-      if (result.response === 0) {
-        // 用户选择立即下载
-        autoUpdater.downloadUpdate();
-      } else {
-        // 用户选择稍后
-        sendUpdateStatusToWindow("update-cancelled");
-      }
-    });
 });
 
 autoUpdater.on("update-not-available", (info) => {
@@ -172,22 +151,6 @@ autoUpdater.on("download-progress", (progressObj) => {
 autoUpdater.on("update-downloaded", (info) => {
   log.info("更新下载完成");
   sendUpdateStatusToWindow("update-downloaded", info);
-
-  // 提示用户是否立即重启
-  dialog
-    .showMessageBox({
-      type: "info",
-      title: "安装更新",
-      message: "新版本已下载完成，是否立即重启应用进行更新？",
-      buttons: ["立即重启", "稍后"],
-      defaultId: 0,
-      cancelId: 1,
-    })
-    .then((result) => {
-      if (result.response === 0) {
-        autoUpdater.quitAndInstall();
-      }
-    });
 });
 
 // 发送更新状态到渲染进程
@@ -205,6 +168,20 @@ ipcMain.on("check-for-updates", () => {
     sendUpdateStatusToWindow("update-not-available", {
       message: "开发环境不支持自动更新",
     });
+  }
+});
+
+// 处理下载更新
+ipcMain.on("download-update", () => {
+  if (NODE_ENV !== "development") {
+    autoUpdater.downloadUpdate();
+  }
+});
+
+// 处理安装更新
+ipcMain.on("quit-and-install", () => {
+  if (NODE_ENV !== "development") {
+    autoUpdater.quitAndInstall();
   }
 });
 
