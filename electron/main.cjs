@@ -118,7 +118,8 @@ function checkForUpdates() {
     return;
   }
 
-  autoUpdater.checkForUpdatesAndNotify();
+  // 只检查更新，不自动通知下载
+  autoUpdater.checkForUpdates();
 }
 
 // 监听更新事件
@@ -130,6 +131,27 @@ autoUpdater.on("checking-for-update", () => {
 autoUpdater.on("update-available", (info) => {
   log.info("发现新版本:", info.version);
   sendUpdateStatusToWindow("update-available", info);
+
+  // 询问用户是否下载更新
+  dialog
+    .showMessageBox({
+      type: "info",
+      title: "发现新版本",
+      message: `发现新版本 ${info.version}，是否立即下载更新？`,
+      detail: "更新内容请查看发行说明",
+      buttons: ["立即下载", "稍后"],
+      defaultId: 0,
+      cancelId: 1,
+    })
+    .then((result) => {
+      if (result.response === 0) {
+        // 用户选择立即下载
+        autoUpdater.downloadUpdate();
+      } else {
+        // 用户选择稍后
+        sendUpdateStatusToWindow("update-cancelled");
+      }
+    });
 });
 
 autoUpdater.on("update-not-available", (info) => {

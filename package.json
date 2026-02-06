@@ -70,7 +70,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "include": "build/nsis-uninstall.nsh"
+      "include": "build/nsis-uninstall.nsh",
+      "perMachine": false
     }
   }
 }
