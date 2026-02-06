@@ -17,7 +17,7 @@ Bundle Generator 是一个专业的代运营系统工具，提供货组生成、
 - **构建工具**: Vite 7.2
 - **桌面框架**: Electron 39.2
 - **数据存储**: Better-SQLite3 12.5
-- **表格处理**: ExcelJS 4.4 + XLSX 0.18
+- **表格处理**: ExcelJS 4.4
 - **自动更新**: Electron Updater 6.7
 - **日志管理**: Electron Log 5.4
 
