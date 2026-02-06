@@ -1,196 +1,195 @@
-<div align="center">
+# Bundle Generator
 
-# BundleGenerator
+一个基于 Electron + Vue 3 + TypeScript 的桌面应用程序，用于代运营系统的套餐生成与管理。
 
-基于 **Electron + Vue 3 + TypeScript + Element Plus** 的桌面应用，用于导入货品/库存数据并快捷生成「货组（Bundle）」及管理。
+## 项目概述
 
-[![Version](https://img.shields.io/badge/version-0.0.5-blue.svg)](https://github.com/mayoi-Akira/bundle)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Electron](https://img.shields.io/badge/Electron-39.2.6-47848F.svg)](https://www.electronjs.org/)
-[![Vue](https://img.shields.io/badge/Vue-3.5.24-42b883.svg)](https://vuejs.org/)
+Bundle Generator 是一个专业的代运营系统工具，提供套餐生成、套餐管理、数据维护等核心功能，帮助用户高效管理商品套餐和相关数据。
 
-</div>
+## 技术栈
 
-## 功能概览
+- **前端框架**: Vue 3.5 + TypeScript
+- **UI 组件库**: Element Plus 2.12
+- **状态管理**: Pinia 3.0
+- **路由管理**: Vue Router 4.6
+- **构建工具**: Vite 7.2
+- **桌面框架**: Electron 39.2
+- **数据存储**: Better-SQLite3 12.5
+- **表格处理**: ExcelJS 4.4 + XLSX 0.18
+- **自动更新**: Electron Updater 6.7
+- **日志管理**: Electron Log 5.4
 
-- **数据维护**：
+## 主要功能
 
-  - 支持导入/更新/覆盖 货品表（商品信息）与 库存表 数据（支持 `.xlsx` / `.xls` / `.csv`）。
-  - 显示当前商品总数、最后更新时间。
-  - 支持导出「货品表」「库存表」「标签表」，并管理标签表。
-  - 支持一键清空货品数据 / 库存数据（带二次确认）。
+### 1. 套餐生成器 (Bundle Generator)
 
-- **货组生成（Bundle 生成）**：
+- 智能套餐组合生成
+- 支持多种套餐配置
+- 批量生成套餐方案
 
-  - 搜索商品：按名称、编码、TU 等关键词搜索，并可筛选「库存为 0」的数据。
-  - 商品选择：在列表中勾选商品，并为每行设置「主品 / 赠品」类型。
-  - 统计信息：实时展示主品数量、赠品数量、总货值。
-  - 参数设置：填写货组名称、使用时间（开始/结束日期）、用途、分类、品类、By-SKU、香型等标签。
-  - 一键生成货组：生成成功后返回虚拟编码 `virtual_code` 并存入本地数据库，同时扣减对应库存。
+### 2. 套餐管理器 (Bundle Manager)
 
-- **货组商品编辑**：
+- 套餐列表管理
+- 套餐编辑与维护
+- 套餐状态跟踪
 
-  - 在「货组管理」中进入单个货组的「商品编辑」页面，对已生成货组的主品/赠品明细进行调整。
-  - 实时从 `goods` 表获取最新库存，保证编辑页展示的库存数量与「货组生成」页一致。
-  - 支持变更主品/赠品类型、移除商品、分页浏览，并在保存时更新货组货值与占用库存；返回时如有未保存修改会提示确认放弃。
+### 3. 数据维护 (Data Maintenance)
 
-- **货组管理**：
-  - 列表查看已生成的货组（虚拟编码、名称、时间范围、总货值、状态、用途、标签等）。
-  - 支持按时间区间、关键词、状态、用途、分类等条件检索。
-  - 支持单个/批量删除、批量导出（按 SKU / 虚拟组套两种格式）；编辑与商品编辑已接入后端逻辑。
+- 基础数据管理
+- 商品信息维护
+- 标签分类管理
 
-**数据存储位置**：`app.getPath("userData")/bundle.db`
+### 4. 用户管理 (User Management)
+
+- 用户权限控制
+- 登录认证系统
+- 密码修改功能
+
+### 5. 开发者设置 (Developer Settings)
+
+- API 配置管理
+- 开发者模式
+- 系统参数设置
+
+### 6. 数据备份
+
+- 本地数据备份
+- 数据导入导出
+- Excel 文件处理
 
 ## 项目结构
 
-```bash
-.
-├─ electron/                    # Electron 主进程代码
-│  ├── main.cjs                 # 应用主入口（简化后 50+ 行）
-│  ├── preload.js              # 预加载脚本，暴露安全 IPC 接口
-│  ├── database/               # 数据库模块
-│  │   └── index.cjs          # 数据库初始化和表结构管理
-│  └── handlers/               # IPC 处理器模块（工程化设计）
-│      ├── index.cjs          # 统一注册所有 handlers
-│      ├── productHandlers.cjs # 产品查询相关操作
-│      ├── bundleHandlers.cjs  # 货组管理相关操作
-│      ├── dataHandlers.cjs    # 数据导入导出操作
-│      └── statsHandlers.cjs   # 统计信息操作
-│
-├─ src/                         # Vue 前端代码
-│  ├─ main.ts                  # Vue 应用入口
-│  ├─ App.vue                  # 根组件
-│  ├─ router/                  # 路由配置
-│  │  └─ index.ts             # 路由定义（货组生成/管理/数据维护）
-│  ├─ layout/                  # 布局组件
-│  │  └─ MainLayout.vue       # 主布局（侧边导航）
-│  ├─ views/                   # 页面组件
-│  │  ├─ BundleGenerator.vue  # 货组生成页
-│  │  ├─ BundleManager.vue    # 货组管理页
-│  │  └─ DataMaintenance.vue  # 数据维护页
-│  ├─ components/              # 业务组件
-│  │  ├─ BundleGenerator/     # 货组生成相关组件
-│  │  ├─ BundleManager/       # 货组管理相关组件
-│  │  └─ DataMaintenance/     # 数据维护相关组件
-│  ├─ composables/             # 组合式函数（业务逻辑）
-│  │  ├─ BundleGenerator/     # 货组生成逻辑
-│  │  ├─ BundleManager/       # 货组管理逻辑
-│  │  └─ DataMaintenance/     # 数据维护逻辑
-│
-└─public/                      # 静态资源
+```
+bundle/
+├── electron/                 # Electron 主进程
+│   ├── main.cjs             # 主进程入口
+│   └── preload.js           # 预加载脚本
+├── src/                     # 源代码目录
+│   ├── api/                 # API 接口
+│   ├── assets/              # 静态资源
+│   ├── components/          # Vue 组件
+│   ├── composables/         # 组合式函数
+│   ├── layout/              # 布局组件
+│   ├── router/              # 路由配置
+│   ├── stores/              # 状态管理
+│   ├── styles/              # 样式文件
+│   ├── types/               # TypeScript 类型定义
+│   ├── views/               # 页面视图
+│   ├── App.vue              # 根组件
+│   └── main.ts              # 应用入口
+├── public/                  # 公共资源
+├── build/                   # 构建配置
+├── release/                 # 发布输出
+├── package.json             # 项目配置
+├── vite.config.ts           # Vite 配置
+└── tsconfig.json            # TypeScript 配置
 ```
 
-## 快速开始
+## 开发环境要求
 
-### 环境要求
+- Node.js >= 18.0.0
+- npm >= 9.0.0
+- Python 3.x (用于编译 native 模块)
+- Visual Studio Build Tools (Windows 环境)
 
-```bash
-- Node.js >= 18.x
-- npm >= 9.x
-- Windows 10/11（推荐）
-```
-
-### 安装依赖
+## 安装依赖
 
 ```bash
 npm install
 ```
 
-### 开发模式
+## 开发调试
 
-#### 1. 仅启动前端（调试 Vue 页面）
+### 启动 Web 开发服务器
 
 ```bash
 npm run dev
 ```
 
-访问：`http://localhost:5173`
-
-> 注：此模式下无法使用数据库功能（需要 Electron IPC）。
-
-#### 2. 启动完整应用（推荐）
+### 启动 Electron 开发环境
 
 ```bash
 npm run electron:dev
 ```
 
-**工作流程**：
+该命令会同时启动 Vite 开发服务器和 Electron 应用，支持热重载。
 
-1. 启动 Vite 开发服务器（端口 5173）
-2. 等待端口可用
-3. 启动 Electron 主进程并加载开发页面
-4. 支持热更新（前端代码修改自动刷新）
+## 构建打包
 
-### 生产构建
-
-#### 构建前端资源
+### 构建前端资源
 
 ```bash
 npm run build
 ```
 
-输出目录：`dist/`
-
-#### 打包桌面应用
+### 打包 Electron 应用
 
 ```bash
 npm run electron:build
 ```
 
-输出目录：`release/`
+打包完成后，安装程序将输出到 `release/` 目录。
 
-- `Bundle Setup 0.0.5.exe` - Windows 安装程序
-- `win-unpacked/` - 免安装版本
+## 发布配置
 
-### 数据库结构
+应用程序配置了自动更新功能，通过 GitHub Releases 分发更新：
 
-| 表名           | 说明                             | 关键字段                           |
-| -------------- | -------------------------------- | ---------------------------------- |
-| `products`     | 货品信息（原 goods 表）          | A 码、TU、品名、规格、价格、原产国 |
-| `inventory`    | 库存信息                         | SKU、批次、到期日、可用库存        |
-| `goods`        | 商品聚合视图（原 products_view） | 按 SKU 聚合的商品+库存视图         |
-| `bundles`      | 货组主表                         | 虚拟编码、名称、使用时间、总货值   |
-| `bundle_items` | 货组明细                         | 关联商品、数量、主品/赠品类型      |
-| `labels`       | 标签表                           | category、product_type、by_sku 等  |
+- **App ID**: com.xinda.BundleGenerator
+- **产品名称**: Bundle
+- **更新源**: GitHub Repository (Outsourced-Operation-System/client)
+- **支持平台**: Windows x64
 
-### 数据操作
+## API 配置
 
-- **导入**：支持 `.xlsx` / `.xls` / `.csv` 格式
-- **导出**：导出为 Excel 文件
-- **备份**：建议定期备份 `bundle.db` 文件
-- **IPC 通信**：所有数据库操作通过 Electron IPC 实现（见 `electron/handlers/`）
+项目支持配置外部 API 地址，可在开发者设置中进行配置：
 
-## 架构设计
-
-### 工程化特点
-
-1. **前后端分离**
-
-   - 前端：Vue 3 组合式 API + TypeScript
-   - 后端：Electron 主进程 + SQLite 数据库
-   - 通信：IPC（Inter-Process Communication）
-
-2. **模块化设计**
-
-   - Electron handlers 按功能拆分（product/bundle/data/stats）
-   - Vue composables 封装业务逻辑
-   - 组件按页面分类组织
-
-3. **代码精简**
-
-   - 主进程代码从 800+ 行重构至 50+ 行
-   - 职责清晰，易于维护和扩展
-
-4. **类型安全**
-   - 全面使用 TypeScript
-   - 严格类型检查
+- 认证接口
+- 套餐管理接口
+- 商品数据接口
+- 标签管理接口
+- 备份恢复接口
 
 ## 数据存储
 
-- 应用使用 `better-sqlite3` 原生 SQLite 数据库，数据自动持久化到 `bundle.db` 文件：
-  - 表 `products`：存储货品信息（A 码、TU、品名、规格、价格、原产国等）。
-  - 表 `inventory`：存储库存信息（SKU、批次、到期日、可用库存等）。
-  - 视图 `goods`：基于 `products` 与 `inventory` 自动聚合的只读视图，供前端商品搜索与库存展示使用。
-  - 表 `bundles` / `bundle_items`：存储生成的货组及其包含的商品信息。
-  - 表 `labels`：存储分类、品类、By-SKU、香型等标签值，供货组生成与筛选使用。
-- 数据导入/导出及删除均通过 Electron IPC（在 `electron/main.cjs` 中实现）。
+应用使用 Better-SQLite3 进行本地数据存储，支持：
+
+- 离线数据访问
+- 快速查询性能
+- 数据持久化
+- 事务支持
+
+## 开发规范
+
+### TypeScript
+
+- 启用严格类型检查
+- 使用接口定义数据结构
+- 避免使用 `any` 类型
+
+### Vue 组件
+
+- 使用 Composition API
+- 组件按功能模块组织
+- 统一使用 TypeScript
+
+### 代码风格
+
+- 遵循 ESLint 规则
+- 使用 2 空格缩进
+- 使用单引号
+
+## 常见问题
+
+### 1. native 模块编译失败
+
+```bash
+npm run electron:rebuild
+```
+
+### 2. 端口冲突
+
+修改 `vite.config.ts` 中的端口配置。
+
+### 3. Electron 白屏
+
+检查开发者工具控制台错误信息，确认 API 配置是否正确。

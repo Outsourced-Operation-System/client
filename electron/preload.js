@@ -10,3 +10,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
   logout: () => ipcRenderer.send("logout"),
   minimizeWindow: () => ipcRenderer.send("minimize-window"),
 });
+
+// 添加 electron 全局对象供更新功能使用
+contextBridge.exposeInMainWorld("electron", {
+  // 检查更新
+  checkForUpdates: () => ipcRenderer.send("check-for-updates"),
+  // 监听更新状态
+  onUpdateStatus: (callback) => {
+    ipcRenderer.on("update-status", (event, data) => callback(data));
+  },
+  // 移除更新状态监听器
+  removeUpdateStatusListener: () => {
+    ipcRenderer.removeAllListeners("update-status");
+  },
+});

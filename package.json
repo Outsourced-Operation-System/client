@@ -3,20 +3,20 @@
   "private": true,
   "version": "0.1.4",
   "type": "module",
-  "main": "electron/main.cjs", 
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
     "electron:dev": "concurrently -k \"npm run dev\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
-    "electron:build": "npm run build && electron-builder",
-    "postinstall": "electron-rebuild -f -w better-sqlite3"
+    "electron:build": "npm run build && electron-builder"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
     "better-sqlite3": "^12.5.0",
     "dayjs": "^1.11.19",
     "electron-log": "^5.4.3",
+    "electron-updater": "^6.7.3",
     "element-plus": "^2.12.0",
     "exceljs": "^4.4.0",
     "pinia": "^3.0.4",
@@ -41,6 +41,13 @@
   },
   "build": {
     "appId": "com.xinda.BundleGenerator",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Outsourced-Operation-System",
+        "repo": "client"
+      }
+    ],
     "productName": "Bundle",
     "directories": {
       "output": "release"

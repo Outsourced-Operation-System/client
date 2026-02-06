@@ -15,8 +15,17 @@ export interface ElectronAPI {
   minimizeWindow: () => void;
 }
 
+export interface ElectronUpdater {
+  checkForUpdates: () => void;
+  onUpdateStatus: (
+    callback: (data: { event: string; data: any }) => void,
+  ) => void;
+  removeUpdateStatusListener: () => void;
+}
+
 declare global {
   interface Window {
     electronAPI?: ElectronAPI;
+    electron?: ElectronUpdater;
   }
 }

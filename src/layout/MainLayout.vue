@@ -88,6 +88,7 @@
             </el-main>
         </el-container>
         <ChangePasswordDialog v-model="changePasswordVisible" />
+        <UpdateNotification ref="updateNotificationRef" />
     </el-container>
 </template>
 
@@ -99,12 +100,14 @@ import { Box, List, DataLine, DArrowLeft, DArrowRight, Tools, User, SwitchButton
 import { useAuthStore } from '../stores/auth'
 import { useProfileChange } from '../composables/useProfileChange'
 import ChangePasswordDialog from '../components/ChangePasswordDialog.vue'
+import UpdateNotification from '../components/UpdateNotification.vue'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const activeMenu = computed(() => route.path)
 const isCollapse = ref(false)
+const updateNotificationRef = ref()
 
 // 密码修改控制
 const { changePasswordVisible, openChangePasswordDialog } = useProfileChange()

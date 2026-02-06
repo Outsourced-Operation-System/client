@@ -1,8 +1,14 @@
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { autoUpdater } = require("electron-updater");
+const log = require("electron-log");
 const path = require("path");
 const fs = require("fs");
 
 const NODE_ENV = process.env.NODE_ENV;
+
+// 配置日志
+log.transports.file.level = "info";
+autoUpdater.logger = log;
 
 let mainWindow = null;
 let loginWindow = null;
@@ -98,7 +104,87 @@ function createMainWindow() {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+
+  // 窗口创建后检查更新
+  if (NODE_ENV !== "development") {
+    checkForUpdates();
+  }
 }
+
+// 自动更新逻辑
+function checkForUpdates() {
+  // 仅在生产环境检查更新
+  if (NODE_ENV === "development") {
+    return;
+  }
+
+  autoUpdater.checkForUpdatesAndNotify();
+}
+
+// 监听更新事件
+autoUpdater.on("checking-for-update", () => {
+  log.info("正在检查更新...");
+  sendUpdateStatusToWindow("checking-for-update");
+});
+
+autoUpdater.on("update-available", (info) => {
+  log.info("发现新版本:", info.version);
+  sendUpdateStatusToWindow("update-available", info);
+});
+
+autoUpdater.on("update-not-available", (info) => {
+  log.info("当前已是最新版本");
+  sendUpdateStatusToWindow("update-not-available", info);
+});
+
+autoUpdater.on("error", (err) => {
+  log.error("更新错误:", err);
+  sendUpdateStatusToWindow("update-error", { message: err.message });
+});
+
+autoUpdater.on("download-progress", (progressObj) => {
+  log.info(`下载进度: ${progressObj.percent}%`);
+  sendUpdateStatusToWindow("download-progress", progressObj);
+});
+
+autoUpdater.on("update-downloaded", (info) => {
+  log.info("更新下载完成");
+  sendUpdateStatusToWindow("update-downloaded", info);
+
+  // 提示用户是否立即重启
+  dialog
+    .showMessageBox({
+      type: "info",
+      title: "安装更新",
+      message: "新版本已下载完成，是否立即重启应用进行更新？",
+      buttons: ["立即重启", "稍后"],
+      defaultId: 0,
+      cancelId: 1,
+    })
+    .then((result) => {
+      if (result.response === 0) {
+        autoUpdater.quitAndInstall();
+      }
+    });
+});
+
+// 发送更新状态到渲染进程
+function sendUpdateStatusToWindow(event, data) {
+  if (mainWindow) {
+    mainWindow.webContents.send("update-status", { event, data });
+  }
+}
+
+// 处理手动检查更新
+ipcMain.on("check-for-updates", () => {
+  if (NODE_ENV !== "development") {
+    autoUpdater.checkForUpdates();
+  } else {
+    sendUpdateStatusToWindow("update-not-available", {
+      message: "开发环境不支持自动更新",
+    });
+  }
+});
 
 // 处理登录成功
 ipcMain.on("login-success", () => {
