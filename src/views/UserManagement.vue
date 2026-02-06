@@ -35,11 +35,11 @@
                 <el-form-item label="用户名" prop="username">
                     <el-input v-model="form.username" :disabled="isEdit" />
                 </el-form-item>
-                <el-form-item label="密码" prop="password" :rules="isEdit ? [] : rules.password">
+                <el-form-item label="密码" prop="password" :rules="isEdit ? rules.changePassword : addPasswordRules">
                     <el-input v-model="form.password" type="password" :placeholder="isEdit ? '如果不修改请留空' : '请输入密码'"
                         show-password />
                 </el-form-item>
-                <el-form-item v-if="form.password" label="确认密码" prop="confirmPassword">
+                <el-form-item v-if="form.password || !isEdit" label="确认密码" prop="confirmPassword">
                     <el-input v-model="form.confirmPassword" type="password" placeholder="请再次输入密码" show-password />
                 </el-form-item>
                 <el-form-item label="角色" prop="role">
@@ -105,8 +105,7 @@ const rules = reactive<FormRules>({
         { required: true, message: "请输入用户名", trigger: "blur" },
         { min: 3, max: 20, message: "长度在 3 到 20 个字符", trigger: "blur" },
     ],
-    password: [
-        { required: true, message: "请输入密码", trigger: "blur" },
+    changePassword: [
         { min: 4, message: "密码长度不能少于 4 位", trigger: "blur" },
     ],
     confirmPassword: [
@@ -115,6 +114,11 @@ const rules = reactive<FormRules>({
     ],
     role: [{ required: true, message: "请选择角色", trigger: "change" }],
 });
+
+const addPasswordRules: FormRules[string] = [
+    { required: true, message: "请输入密码", trigger: "blur" },
+    { min: 4, message: "密码长度不能少于 4 位", trigger: "blur" },
+];
 
 const fetchUsers = async () => {
     loading.value = true;
