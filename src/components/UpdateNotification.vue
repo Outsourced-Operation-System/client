@@ -72,7 +72,7 @@
             </div>
             <!-- 下载完成：立即重启 / 稍后 -->
             <div v-else-if="updateStatus === 'update-downloaded'" class="dialog-footer">
-                <el-button @click="handleLater">稍后</el-button>
+                <!-- <el-button @click="handleLater">稍后</el-button> -->
                 <el-button type="primary" @click="handleQuitAndInstall">
                     <el-icon>
                         <RefreshRight />

@@ -9,6 +9,7 @@ const NODE_ENV = process.env.NODE_ENV;
 // 配置日志
 log.transports.file.level = "info";
 autoUpdater.logger = log;
+autoUpdater.autoDownload = false;
 
 let mainWindow = null;
 let loginWindow = null;
