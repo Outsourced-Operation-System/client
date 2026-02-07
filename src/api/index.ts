@@ -39,6 +39,26 @@ export type { BackupInfo } from "./backup";
 export { labelApi } from "./label";
 export type { Label, LabelValues } from "./label";
 
+// 导出达人 API
+export {
+  getTalents,
+  getTalentSuggestions,
+  createTalent,
+  getTalentDetail,
+  updateTalent,
+  deleteTalent,
+} from "./talent";
+export type {
+  Talent,
+  TalentQueryParams,
+  TalentSuggestion,
+  PaginatedResponse,
+} from "./talent";
+
+// 导出统计 API
+export { getDataStats, checkHealth } from "./stats";
+export type { HealthStatus } from "./stats";
+
 // 统一 API 对象
 import { productApi } from "./product";
 import { bundleApi } from "./bundle";
