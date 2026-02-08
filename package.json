@@ -48,6 +48,9 @@
         "releaseType": "release"
       }
     ],
+    "releaseInfo": {
+      "releaseNotesFile": "release-notes.md"
+    },
     "productName": "Bundle",
     "directories": {
       "output": "release"
