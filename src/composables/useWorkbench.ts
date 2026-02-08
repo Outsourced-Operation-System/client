@@ -28,7 +28,7 @@ export function useWorkbench() {
   const loading = ref(false);
   const count = ref<workbenchCount>();
   const trends = ref<workbenchTrend>();
-  
+
   // 初始化默认展示的空卡片，防止数据未加载时不显示
   const statCards = ref<StatCard[]>([
     { label: "已合作达人", value: 0, icon: "User", color: "blue" },
@@ -71,7 +71,7 @@ export function useWorkbench() {
           },
         },
         {
-          label: "本月累计GMV",
+          label: "今日GMV",
           value: count.value?.gmvTotal || 0,
           icon: "Money",
           color: "green",

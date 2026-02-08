@@ -4,7 +4,7 @@
  */
 import { getApiBaseUrl } from "../composables/useApiConfig";
 import router from "../router";
-import { ElMessage } from "element-plus";
+import { ElMessageBox } from "element-plus";
 
 // API 基础配置 - 动态获取
 export const getBaseUrl = () => getApiBaseUrl();
@@ -18,9 +18,14 @@ function getToken(): string | null {
 }
 
 // 清除认证信息并跳转登录页
-function handleUnauthorized() {
+async function handleUnauthorized() {
+  // 显示弹窗提示
+  await ElMessageBox.alert("登录已过期，请重新登录", "提示", {
+    confirmButtonText: "确认",
+    type: "warning",
+  });
+
   localStorage.removeItem("token");
-  ElMessage.error("登录已过期，请重新登录");
 
   // 如果在 Electron 环境，通知主进程
   if (window.electronAPI?.logout) {
