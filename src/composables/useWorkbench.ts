@@ -3,8 +3,8 @@
  */
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import { getDataStats } from "@/api/stats";
-import type { DataStats } from "@/api/stats";
+import { workbenchApi } from "@/api/workbench";
+import type { workbenchTrend, workbenchCount } from "@/api/workbench";
 
 export interface StatCard {
   label: string;
@@ -17,47 +17,81 @@ export interface StatCard {
   };
 }
 
+function formatSigned(num: number): string {
+  return num > 0 ? `+${num}` : `${num}`;
+}
+function typeOfTrend(num: number): "up" | "down" {
+  return num >= 0 ? "up" : "down";
+}
+
 export function useWorkbench() {
   const loading = ref(false);
-  const stats = ref<DataStats | null>(null);
+  const count = ref<workbenchCount>();
+  const trends = ref<workbenchTrend>();
   const statCards = ref<StatCard[]>([]);
 
   // 加载统计数据
   const loadStats = async () => {
     loading.value = true;
     try {
-      const data = await getDataStats();
-      console.log(data);
-      stats.value = data;
+      const res = await workbenchApi.getWorkbenchStats();
+      if (res.countErr) {
+        ElMessage.error("加载统计数据失败");
+        for (const err of res.errors || []) {
+          console.error("获取统计数据错误: ", err);
+        }
+      }
+      if (res.trendErr) {
+        ElMessage.error("加载趋势数据失败");
+        for (const err of res.errors || []) {
+          console.error("获取趋势数据错误: ", err);
+        }
+      }
+      console.log("数据: ", res);
+      count.value = res.data.count;
+      trends.value = res.data.trend;
 
       // 构建统计卡片数据
       statCards.value = [
         {
-          label: "商品总数",
-          value: data.count || 0,
-          icon: "Box",
+          label: "已合作达人",
+          value: count.value?.tatlentCount || 0,
+          icon: "User",
           color: "blue",
-          trend: { value: "较昨日 +12", type: "up" },
+          trend: {
+            value: `较昨日 ${formatSigned(trends.value?.tatlentTrend || 0)}`,
+            type: typeOfTrend(trends.value?.tatlentTrend || 0),
+          },
         },
         {
-          label: "库存总量",
-          value: data.inventoryCount || 0,
-          icon: "Files",
+          label: "本月累计GMV",
+          value: count.value?.gmvTotal || 0,
+          icon: "Money",
           color: "green",
-          trend: { value: "较昨日 -5", type: "down" },
+          trend: {
+            value: `较昨日 ${formatSigned(trends.value?.gmvTrend || 0)}`,
+            type: typeOfTrend(trends.value?.gmvTrend || 0),
+          },
         },
         {
-          label: "货组数量",
-          value: data.bundleCount || 0,
-          icon: "Collection",
-          color: "orange",
-          trend: { value: "较昨日 +3", type: "up" },
-        },
-        {
-          label: "执行单",
-          value: data.executionOrderCount || 0,
+          label: "进行中执行单",
+          value: count.value?.executionOrderCount || 0,
           icon: "Document",
           color: "red",
+          trend: {
+            value: `较昨日 ${formatSigned(trends.value?.executionOrderTrend || 0)}`,
+            type: typeOfTrend(trends.value?.executionOrderTrend || 0),
+          },
+        },
+        {
+          label: "有效货组数量",
+          value: count.value?.bundleCount || 0,
+          icon: "Collection",
+          color: "orange",
+          trend: {
+            value: `较昨日 ${formatSigned(trends.value?.bundleTrend || 0)}`,
+            type: typeOfTrend(trends.value?.bundleTrend || 0),
+          },
         },
       ];
     } catch (error) {
@@ -74,7 +108,8 @@ export function useWorkbench() {
 
   return {
     loading,
-    stats,
+    count,
+    trends,
     statCards,
     loadStats,
   };

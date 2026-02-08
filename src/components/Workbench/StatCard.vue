@@ -17,6 +17,7 @@
                 </el-icon>
                 {{ trend.value }}
             </div>
+            <div v-else style="height: 16px;"></div>
         </div>
     </div>
 </template>
