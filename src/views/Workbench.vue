@@ -1,9 +1,15 @@
 <template>
     <div class="workbench-container">
         <!-- 页面标题 -->
-        <div class="page-header">
-            <h2 class="page-title">工作台</h2>
-            <p class="page-desc">欢迎回来，这里是您的工作概览</p>
+        <div class="page-header" style="display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <h2 class="page-title">工作台</h2>
+                <p class="page-desc">欢迎回来，这里是您的工作概览</p>
+            </div>
+            <el-button type="primary" size="large" :icon="Refresh" @click="handleRefresh" :loading="loading"
+                style="margin-left: 16px; min-width: 88px;">
+                刷新
+            </el-button>
         </div>
 
         <!-- 统计卡片 -->
@@ -20,6 +26,19 @@
             <el-row :gutter="16">
                 <el-col :xs="12" :sm="6" v-for="action in quickActions" :key="action.label">
                     <QuickAction :label="action.label" :icon="action.icon" @click="handleQuickAction(action.route)" />
+                </el-col>
+            </el-row>
+        </div>
+
+        <!-- 数据概览 -->
+        <div class="section">
+            <h3 class="section-title">数据概览</h3>
+            <el-row :gutter="24">
+                <el-col :xs="24" :lg="16" class="chart-col">
+                    <GMVTrendChart />
+                </el-col>
+                <el-col :xs="24" :lg="8" class="chart-col">
+                    <InfluencerDistributionChart />
                 </el-col>
             </el-row>
         </div>
@@ -49,7 +68,7 @@
                 <el-col :xs="24" :sm="12">
                     <el-card>
                         <template #header>
-                            <h3 class="card-title">待处理执行单</h3>
+                            <h3 class="card-title">今日待办</h3>
                         </template>
                         <el-empty description="暂无待处理执行单" />
                     </el-card>
@@ -57,7 +76,7 @@
                 <el-col :xs="24" :sm="12">
                     <el-card>
                         <template #header>
-                            <h3 class="card-title">库存预警</h3>
+                            <h3 class="card-title">系统提醒</h3>
                         </template>
                         <el-empty description="暂无库存预警" />
                     </el-card>
@@ -68,14 +87,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onActivated } from 'vue';
+import { Refresh } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
 import StatCard from '@/components/Workbench/StatCard.vue';
 import QuickAction from '@/components/Workbench/QuickAction.vue';
+import GMVTrendChart from '@/components/Workbench/GMVTrendChart.vue';
+import InfluencerDistributionChart from '@/components/Workbench/TalentDistributionChart.vue';
 import { useWorkbench } from '@/composables/useWorkbench';
 
 const router = useRouter();
-const { loading, statCards } = useWorkbench();
+const { loading, statCards, loadStats } = useWorkbench();
+
+onActivated(() => {
+    loadStats();
+});
 
 // 快捷操作
 const quickActions = ref([
@@ -97,6 +123,11 @@ const recentActivities = ref<activityDetail[]>([]);
 // 处理快捷操作
 const handleQuickAction = (route: string) => {
     router.push(route);
+};
+
+// 刷新按钮处理
+const handleRefresh = () => {
+    loadStats();
 };
 </script>
 
@@ -163,5 +194,15 @@ const handleQuickAction = (route: string) => {
 
 :deep(.el-timeline) {
     padding-left: 0;
+}
+
+.chart-col {
+    margin-bottom: 24px;
+}
+
+@media (min-width: 1200px) {
+    .chart-col {
+        margin-bottom: 0;
+    }
 }
 </style>

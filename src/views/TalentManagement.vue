@@ -123,8 +123,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { Search, Refresh, Plus } from '@element-plus/icons-vue';
-import TalentTable from '@/components/InfluencerManagement/TalentTable.vue';
-import TalentForm from '@/components/InfluencerManagement/TalentForm.vue';
+import TalentTable from '@/components/TalentManagement/TalentTable.vue';
+import TalentForm from '@/components/TalentManagement/TalentForm.vue';
 import { useTalent } from '@/composables/useTalent';
 import type { Talent } from '@/api/talent';
 

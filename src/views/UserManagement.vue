@@ -10,8 +10,8 @@
             <el-table-column prop="username" label="用户名" />
             <el-table-column prop="role" label="角色">
                 <template #default="scope">
-                    <el-tag :type="scope.row.role === 'admin' ? 'danger' : 'success'">
-                        {{ scope.row.role === 'admin' ? '管理员' : '普通用户' }}
+                    <el-tag :type="roleTagType(scope.row.role)">
+                        {{ roleDisplayName(scope.row.role) }}
                     </el-tag>
                 </template>
             </el-table-column>
@@ -44,7 +44,11 @@
                 </el-form-item>
                 <el-form-item label="角色" prop="role">
                     <el-select v-model="form.role" placeholder="请选择角色">
-                        <el-option label="管理员" value="admin" />
+                        <el-option label="超级管理员" value="admin" />
+                        <el-option label="品牌主管" value="brand_manager" />
+                        <el-option label="商务" value="business" />
+                        <el-option label="运营" value="operator" />
+                        <el-option label="数据专员" value="analyst" />
                         <el-option label="普通用户" value="user" />
                     </el-select>
                 </el-form-item>
@@ -62,6 +66,36 @@
 </template>
 
 <script setup lang="ts">
+// 角色显示名映射
+const roleDisplayMap: Record<string, string> = {
+    admin: "超级管理员",
+    brand_manager: "品牌主管",
+    business: "商务",
+    operator: "运营",
+    analyst: "数据专员",
+    user: "普通用户",
+};
+
+function roleDisplayName(role: string) {
+    return roleDisplayMap[role] || role;
+}
+
+function roleTagType(role: string) {
+    switch (role) {
+        case "admin":
+            return "danger";
+        case "brand_manager":
+            return "warning";
+        case "business":
+            return "success";
+        case "operator":
+            return "default";
+        case "analyst":
+            return "primary";
+        default:
+            return "info";
+    }
+}
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";

@@ -7,7 +7,7 @@ import BundleProducts from "../views/BundleProducts.vue";
 import DataMaintenance from "../views/DataMaintenance.vue";
 import DeveloperSettings from "../views/DeveloperSettings.vue";
 import ExecutionOrderManagement from "../views/ExecutionOrderManagement.vue";
-import InfluencerManagement from "../views/InfluencerManagement.vue";
+import TalentManagement from "../views/TalentManagement.vue";
 import UserManagement from "../views/UserManagement.vue";
 import Workbench from "../views/Workbench.vue";
 import Login from "../views/Login.vue";
@@ -64,7 +64,7 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: "influencers",
         name: "InfluencerManagement",
-        component: InfluencerManagement,
+        component: TalentManagement,
         meta: { title: "达人管理" },
       },
       {
