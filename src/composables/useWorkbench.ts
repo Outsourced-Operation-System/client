@@ -4,7 +4,7 @@
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { workbenchApi } from "@/api/workbench";
-import type { workbenchTrend, workbenchCount } from "@/api/workbench";
+import type { workbenchTrend, workbenchCount, AuditLog } from "@/api/workbench";
 
 export interface StatCard {
   label: string;
@@ -28,6 +28,10 @@ export function useWorkbench() {
   const loading = ref(false);
   const count = ref<workbenchCount>();
   const trends = ref<workbenchTrend>();
+
+  // 最近活动相关
+  const recentActivities = ref<AuditLog[]>([]);
+  const activitiesLoading = ref(false);
 
   // 初始化默认展示的空卡片，防止数据未加载时不显示
   const statCards = ref<StatCard[]>([
@@ -62,17 +66,17 @@ export function useWorkbench() {
       statCards.value = [
         {
           label: "已合作达人",
-          value: count.value?.tatlentCount || 0,
+          value: count.value?.talentCount || 0,
           icon: "User",
           color: "blue",
           trend: {
-            value: `较昨日 ${formatSigned(trends.value?.tatlentTrend || 0)}`,
-            type: typeOfTrend(trends.value?.tatlentTrend || 0),
+            value: `较昨日 ${formatSigned(trends.value?.talentTrend || 0)}`,
+            type: typeOfTrend(trends.value?.talentTrend || 0),
           },
         },
         {
           label: "今日GMV",
-          value: count.value?.gmvTotal || 0,
+          value: count.value?.gmv || 0,
           icon: "Money",
           color: "green",
           trend: {
@@ -109,8 +113,24 @@ export function useWorkbench() {
     }
   };
 
+  // 加载最近活动数据（最新5条）
+  const loadRecentActivities = async () => {
+    activitiesLoading.value = true;
+    try {
+      const res = await workbenchApi.getAuditLogs({ page: 1, pageSize: 5 });
+      // 严格确保只显示5条
+      recentActivities.value = res.data.slice(0, 5);
+    } catch (error) {
+      console.error("加载最近活动失败:", error);
+      ElMessage.error("加载最近活动失败");
+    } finally {
+      activitiesLoading.value = false;
+    }
+  };
+
   onMounted(() => {
     loadStats();
+    loadRecentActivities();
   });
 
   return {
@@ -119,5 +139,8 @@ export function useWorkbench() {
     trends,
     statCards,
     loadStats,
+    recentActivities,
+    activitiesLoading,
+    loadRecentActivities,
   };
 }
