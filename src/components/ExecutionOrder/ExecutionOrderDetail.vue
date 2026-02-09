@@ -18,7 +18,8 @@
         </el-descriptions>
 
         <div class="section-title">货品规划</div>
-        <el-table :data="order.bundles" border style="width: 100%; margin-top: 10px">
+        <el-table :data="order.bundles" border style="width: 100%; margin-top: 10px"
+            :cell-style="{ padding: '16px 0' }">
             <el-table-column prop="sortOrder" label="排序" width="80" align="center" />
             <el-table-column label="货组名称" min-width="200">
                 <template #default="{ row }">

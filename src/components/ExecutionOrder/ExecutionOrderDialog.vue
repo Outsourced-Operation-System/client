@@ -64,7 +64,8 @@
                 </el-button>
             </div>
 
-            <el-table :data="form.bundles" border style="margin-top: 10px" row-key="tempKey">
+            <el-table :data="form.bundles" border style="margin-top: 10px" row-key="tempKey"
+                :cell-style="{ padding: '16px 0' }">
                 <el-table-column label="排序" width="80">
                     <template #default="{ row }">
                         <el-input-number v-model="row.sortOrder" size="small" :min="1" controls-position="right"
@@ -108,7 +109,7 @@
                 </el-input>
             </div>
             <el-table :data="talentList" v-loading="talentDialogLoading" height="400" @row-click="handleTalentRowClick"
-                :row-class-name="getTalentRowClass">
+                :row-class-name="getTalentRowClass" :cell-style="{ padding: '16px 0' }">
                 <el-table-column prop="nickname" label="达人昵称" min-width="150" show-overflow-tooltip />
                 <el-table-column prop="type" label="类型" width="100" />
                 <el-table-column prop="fansCount" label="粉丝数" width="120">
@@ -151,7 +152,7 @@
                 </el-input>
             </div>
             <el-table :data="bundleList" v-loading="bundleLoading" @selection-change="handleBundleSelectionChange"
-                height="400" ref="bundleTableRef">
+                height="400" ref="bundleTableRef" :cell-style="{ padding: '16px 0' }">
                 <el-table-column type="selection" width="55" />
                 <el-table-column prop="virtual_code" label="编码" width="120" />
                 <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip />
@@ -237,7 +238,7 @@
                 <div v-if="currentBundleDetail?.items && currentBundleDetail.items.length > 0"
                     style="margin-top: 20px;">
                     <div style="font-weight: bold; margin-bottom: 10px;">商品明细：</div>
-                    <el-table :data="currentBundleDetail.items" border>
+                    <el-table :data="currentBundleDetail.items" border :cell-style="{ padding: '16px 0' }">
                         <el-table-column prop="sku" label="SKU" width="120" />
                         <el-table-column prop="article_code" label="货号" width="100" />
                         <el-table-column prop="tu" label="TU" width="80" />

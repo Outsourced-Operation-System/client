@@ -1,6 +1,7 @@
 <template>
     <div class="table-wrapper">
-        <el-table :data="data" v-loading="loading" stripe border height="100%" @sort-change="handleSortChange">
+        <el-table :data="data" v-loading="loading" stripe border height="100%" @sort-change="handleSortChange"
+            :cell-style="{ padding: '16px 0' }">
             <el-table-column type="index" label="序号" width="60" />
 
             <el-table-column prop="nickname" label="达人昵称" min-width="140" />

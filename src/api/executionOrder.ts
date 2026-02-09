@@ -62,8 +62,8 @@ export interface ExecutionOrderReq {
 }
 
 export interface ExecutionOrderQueryParams {
-  page?: number;
-  pageSize?: number;
+  page: number;
+  pageSize: number;
   keyword?: string;
   status?: string;
   talentId?: number;

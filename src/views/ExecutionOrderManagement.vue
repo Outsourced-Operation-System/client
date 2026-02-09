@@ -19,47 +19,9 @@
             </div>
 
             <!-- 表格区域 -->
-            <div class="table-section">
-                <el-table v-loading="loading" :data="list" border style="width: 100%" height="100%">
-                    <el-table-column prop="code" label="执行单编号" width="180" fixed />
-                    <el-table-column prop="name" label="执行单名称" min-width="150" show-overflow-tooltip />
-                    <el-table-column label="关联达人" min-width="120">
-                        <template #default="{ row }">
-                            {{ row.talent?.nickname || '-' }}
-                        </template>
-                    </el-table-column>
-                    <el-table-column prop="type" label="类型" width="100">
-                        <template #default="{ row }">
-                            <el-tag :type="row.type === '直播' ? 'warning' : 'success'" size="small">{{ row.type
-                            }}</el-tag>
-                        </template>
-                    </el-table-column>
-                    <el-table-column label="排期日期" width="120">
-                        <template #default="{ row }">
-                            {{ formatDate(row.date) }}
-                        </template>
-                    </el-table-column>
-                    <el-table-column prop="status" label="状态" width="100">
-                        <template #default="{ row }">
-                            <el-tag size="small">{{ row.status }}</el-tag>
-                        </template>
-                    </el-table-column>
-                    <el-table-column label="操作" width="200" fixed="right" align="center">
-                        <template #default="{ row }">
-                            <el-button type="primary" link size="small" @click="handleDetail(row)">详情</el-button>
-                            <el-button type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
-                            <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
-                        </template>
-                    </el-table-column>
-                </el-table>
-
-                <!-- 分页 -->
-                <div class="pagination-container">
-                    <el-pagination v-model:current-page="queryParams.page" v-model:page-size="queryParams.pageSize"
-                        :page-sizes="[10, 20, 50, 100]" :total="total" layout="total, sizes, prev, pager, next, jumper"
-                        @size-change="handleSearch" @current-change="handleSearch" />
-                </div>
-            </div>
+            <ExecutionOrderTable v-model:page="queryParams.page" v-model:pageSize="queryParams.pageSize"
+                :loading="loading" :data="list" :total="total" @pageChange="handleSearch" @detail="handleDetail"
+                @edit="handleEdit" @delete="handleDelete" />
         </el-card>
 
         <!-- Dialogs -->
@@ -75,7 +37,6 @@
 import { ref, reactive, onMounted, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import dayjs from 'dayjs';
 
 const route = useRoute();
 const router = useRouter();
@@ -88,6 +49,7 @@ import {
 } from '@/api/executionOrder';
 import ExecutionOrderDialog from '@/components/ExecutionOrder/ExecutionOrderDialog.vue';
 import ExecutionOrderDetail from '@/components/ExecutionOrder/ExecutionOrderDetail.vue';
+import ExecutionOrderTable from '@/components/ExecutionOrder/ExecutionOrderTable.vue';
 
 const loading = ref(false);
 const list = ref<ExecutionOrder[]>([]);
@@ -165,10 +127,6 @@ const handleDelete = (row: ExecutionOrder) => {
             ElMessage.error('删除失败');
         }
     });
-};
-
-const formatDate = (date: string) => {
-    return date ? dayjs(date).format('YYYY-MM-DD') : '-';
 };
 
 // 处理从达人管理页面跳转过来的情况

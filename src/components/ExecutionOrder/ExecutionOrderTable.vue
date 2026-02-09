@@ -1,24 +1,25 @@
 <template>
     <div class="table-section">
         <el-table v-loading="loading" :data="data" border style="width: 100%" height="100%">
-            <el-table-column prop="code" label="执行单编号" width="180" fixed />
-            <el-table-column prop="name" label="执行单名称" min-width="150" show-overflow-tooltip />
-            <el-table-column label="关联达人" min-width="120">
+            <el-table-column prop="code" label="执行单编号" width="180" fixed align="center" />
+            <el-table-column prop="name" label="执行单名称" min-width="150" show-overflow-tooltip align="center" />
+            <el-table-column label="关联达人" min-width="120" align="center">
                 <template #default="{ row }">
                     {{ row.talent?.nickname || '-' }}
                 </template>
             </el-table-column>
-            <el-table-column prop="type" label="类型" width="100">
+            <el-table-column prop="type" label="类型" width="100" align="center">
                 <template #default="{ row }">
-                    <el-tag :type="row.type === '直播' ? 'warning' : 'success'" size="small">{{ row.type }}</el-tag>
+                    <el-tag :type="row.type === '直播' ? 'warning' : 'success'" size="small" align="center">{{ row.type
+                        }}</el-tag>
                 </template>
             </el-table-column>
-            <el-table-column label="排期日期" width="120">
+            <el-table-column label="排期日期" width="120" align="center">
                 <template #default="{ row }">
                     {{ formatDate(row.date) }}
                 </template>
             </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
+            <el-table-column prop="status" label="状态" width="100" align="center">
                 <template #default="{ row }">
                     <el-tag size="small">{{ row.status }}</el-tag>
                 </template>
@@ -98,5 +99,15 @@ const formatDate = (date: string) => {
     justify-content: flex-end;
     margin-top: 20px;
     flex-shrink: 0;
+}
+
+
+:deep(.el-table .el-table__body-wrapper .cell) {
+    padding: 13px 0;
+}
+
+:deep(.el-table .el-table__header-wrapper .cell) {
+    padding: 1px 0;
+    font-size: 14px;
 }
 </style>
