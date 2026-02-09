@@ -72,9 +72,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, nextTick, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import dayjs from 'dayjs';
+
+const route = useRoute();
+const router = useRouter();
 import {
     getExecutionOrders,
     deleteExecutionOrder,
@@ -133,8 +137,10 @@ const resetQuery = () => {
     handleSearch();
 };
 
-const handleAdd = () => {
-    dialogRef.value?.init();
+const handleAdd = (prefilledTalentId?: number, prefilledTalentName?: string) => {
+    if (dialogRef.value) {
+        dialogRef.value.init(undefined, prefilledTalentId, prefilledTalentName);
+    }
 };
 
 const handleEdit = (row: ExecutionOrder) => {
@@ -164,6 +170,35 @@ const handleDelete = (row: ExecutionOrder) => {
 const formatDate = (date: string) => {
     return date ? dayjs(date).format('YYYY-MM-DD') : '-';
 };
+
+// 处理从达人管理页面跳转过来的情况
+const handleRouteQuery = async () => {
+    if (route.query.action === 'create' && route.query.talentId) {
+        const talentId = parseInt(route.query.talentId as string);
+        const talentName = route.query.talentName as string;
+
+        // 清除路由参数，避免重复触发
+        await router.replace({
+            name: 'ExecutionOrderManagement',
+            query: {}
+        });
+
+        // 使用 nextTick 确保组件已完全渲染，并延迟足够时间确保 dialogRef 已准备好
+        await nextTick();
+        setTimeout(() => {
+            handleAdd(talentId, talentName);
+        }, 500);
+    }
+};
+
+// 监听路由变化
+watch(
+    () => route.query,
+    () => {
+        handleRouteQuery();
+    },
+    { immediate: true }
+);
 
 onMounted(() => {
     handleSearch();

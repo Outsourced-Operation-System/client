@@ -63,13 +63,16 @@
                 </template>
             </el-table-column>
 
-            <el-table-column label="操作" width="200" fixed="right">
+            <el-table-column label="操作" width="260" fixed="right">
                 <template #default="{ row }">
                     <el-button text type="primary" size="small" @click="handleView(row)">
                         查看
                     </el-button>
                     <el-button text type="primary" size="small" @click="handleEdit(row)">
                         编辑
+                    </el-button>
+                    <el-button text type="success" size="small" @click="handleCreateOrder(row)">
+                        执行单
                     </el-button>
                     <el-button text type="danger" size="small" @click="handleDelete(row)">
                         删除
@@ -95,6 +98,7 @@ const emit = defineEmits<{
     edit: [talent: Talent];
     delete: [talent: Talent];
     sortChange: [sortData: any];
+    createOrder: [talent: Talent];
 }>();
 
 // 格式化数字
@@ -148,6 +152,10 @@ const handleEdit = (row: Talent) => {
 
 const handleDelete = (row: Talent) => {
     emit('delete', row);
+};
+
+const handleCreateOrder = (row: Talent) => {
+    emit('createOrder', row);
 };
 
 const handleSortChange = (sortData: any) => {

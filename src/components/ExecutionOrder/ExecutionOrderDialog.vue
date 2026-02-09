@@ -577,7 +577,7 @@ const handleClose = () => {
 };
 
 // Initialize helper
-const init = async (row?: ExecutionOrder) => {
+const init = async (row?: ExecutionOrder, prefilledTalentId?: number, prefilledTalentName?: string) => {
     visible.value = true;
 
     if (row && row.id) {
@@ -621,6 +621,36 @@ const init = async (row?: ExecutionOrder) => {
         form.status = '沟通中';
         form.commissionRate = 0;
         form.pitFee = 0;
+        selectedTalentName.value = '';
+
+        // 如果提供了预填充的达人信息，则自动获取达人详情并填充
+        if (prefilledTalentId && prefilledTalentName) {
+            form.talentId = prefilledTalentId;
+            selectedTalentName.value = prefilledTalentName;
+
+            // 获取达人详细信息以自动填充其他字段
+            try {
+                const res = await getTalents({ keyword: '', page: 1, pageSize: 1000 });
+                if (res.data) {
+                    const talent = res.data.find(t => t.id === prefilledTalentId);
+                    if (talent) {
+                        if (talent.type === '直播') {
+                            form.type = '直播';
+                        } else if (talent.type === '短视频' || talent.type === '图文') {
+                            form.type = '短视频';
+                        }
+                        if (talent.pitFee !== undefined && talent.pitFee !== null) {
+                            form.pitFee = talent.pitFee;
+                        }
+                        if (talent.commissionRateOnline !== undefined && talent.commissionRateOnline !== null) {
+                            form.commissionRate = talent.commissionRateOnline;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to fetch talent details", e);
+            }
+        }
     }
 };
 

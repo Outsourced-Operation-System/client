@@ -60,7 +60,7 @@
             <!-- 达人列表 -->
             <div class="table-section">
                 <TalentTable :data="tableData" :loading="loading" @view="handleView" @edit="handleEdit"
-                    @delete="handleDelete" />
+                    @delete="handleDelete" @create-order="handleCreateOrder" />
 
                 <!-- 分页 -->
                 <div class="pagination-container">
@@ -122,11 +122,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { Search, Refresh, Plus } from '@element-plus/icons-vue';
 import TalentTable from '@/components/TalentManagement/TalentTable.vue';
 import TalentForm from '@/components/TalentManagement/TalentForm.vue';
 import { useTalent } from '@/composables/useTalent';
 import type { Talent } from '@/api/talent';
+
+const router = useRouter();
 
 const {
     loading,
@@ -177,6 +180,18 @@ const handleEdit = (talent: Talent) => {
 // 删除达人
 const handleDelete = async (talent: Talent) => {
     await deleteTalent(talent.id, talent.nickname);
+};
+
+// 创建执行单
+const handleCreateOrder = (talent: Talent) => {
+    router.push({
+        name: 'ExecutionOrderManagement',
+        query: {
+            action: 'create',
+            talentId: talent.id.toString(),
+            talentName: talent.nickname
+        }
+    });
 };
 
 // 关闭表单
