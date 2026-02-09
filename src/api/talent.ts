@@ -40,7 +40,6 @@ export interface TalentQueryParams {
 // 分页响应
 export interface PaginatedResponse<T> {
   data?: T[];
-  list?: T[];
   total: number;
   page: number;
 }

@@ -67,7 +67,7 @@ export interface BundleFilters {
 }
 
 export interface BundlesResponse {
-  list: BundleRecord[];
+  data: BundleRecord[];
   total: number;
 }
 

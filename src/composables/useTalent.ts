@@ -34,7 +34,7 @@ export function useTalent() {
       const response = await getTalents(queryParams);
       console.log(response);
       // 兼容 data 和 list 两种响应格式
-      tableData.value = response.data || response.list || [];
+      tableData.value = response.data || response.data || [];
       total.value = response.total;
     } catch (error) {
       console.error("加载达人列表失败:", error);
